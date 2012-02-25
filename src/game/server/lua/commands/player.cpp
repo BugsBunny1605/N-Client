@@ -145,3 +145,24 @@ int CLuaFile::GetPlayerSkin(lua_State *L)
     }
     return 0;
 }
+
+//SetPlayerScore(ClientID, Score)
+int CLuaFile::SetPlayerScore(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if(lua_isnumber(L, 1) && lua_isnumber(L, 2))
+    {
+		if(lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 2) < MAX_CLIENTS)
+		{
+			if(pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)])
+				pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->m_Score = lua_tointeger(L, 2);
+		}
+    }
+    return 0;
+}
+

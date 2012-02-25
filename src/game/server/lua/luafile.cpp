@@ -156,7 +156,7 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "GetPlayerPing", this->GetPlayerPing);
     lua_register(m_pLua, "GetPlayerTeam", this->GetPlayerTeam);
     lua_register(m_pLua, "GetPlayerSkin", this->GetPlayerSkin);
-
+	lua_register(m_pLua, "SetPlayerScore", this->SetPlayerScore);
 
     //character
     lua_register(m_pLua, "Emote", this->Emote);
@@ -212,6 +212,7 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "ProjectileGetExplosive", this->ProjectileGetExplosive);
     lua_register(m_pLua, "ProjectileGetSoundImpact", this->ProjectileGetSoundImpact);
     lua_register(m_pLua, "ProjectileCreate", this->ProjectileCreate);
+	lua_register(m_pLua, "LaserCreate", this->LaserCreate);
 
     //game
     lua_register(m_pLua, "CreateExplosion", this->CreateExplosion);

@@ -5,6 +5,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/entities/projectile.h>
+#include <game/server/entities/laser.h>
 #include <engine/shared/config.h>
 #include <engine/external/zlib/zlib.h>
 #include <engine/config.h>
@@ -209,6 +210,7 @@ public:
     static inline int GetPlayerColorFeet(lua_State *L); //Todo: implement me
     static inline int GetPlayerColorBody(lua_State *L); //Todo: implement me
     static inline int GetPlayerColorSkin(lua_State *L); //Todo: implement me
+	static inline int SetPlayerScore(lua_State *L);
 
     //Config
     static inline int GetConfigValue(lua_State *L);
@@ -237,6 +239,9 @@ public:
     static inline int ProjectileGetExplosive(lua_State *L);
     static inline int ProjectileGetSoundImpact(lua_State *L);
     static inline int ProjectileCreate(lua_State *L);
+
+	//LaserCreate(Pos.x, Pos.y, Dir.x, Dir.y, StartEnergy, Owner)
+	static inline int LaserCreate(lua_State *L);
 
     //Game
     static inline int CreateExplosion(lua_State *L);

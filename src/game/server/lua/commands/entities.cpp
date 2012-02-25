@@ -385,3 +385,29 @@ int CLuaFile::CharacterGetArmor(lua_State *L)
     return 0;
 }
 
+//LaserCreate(Pos.x, Pos.y, Dir.x, Dir.y, StartEnergy, Owner)
+int CLuaFile::LaserCreate(lua_State *L)
+{
+	vec2 Pos;
+	vec2 Dir;
+	int StartEnergy;
+	int Owner;
+
+	lua_getglobal(L, "pLUA");
+	CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+	lua_Debug Frame;
+	lua_getstack(L, 1, &Frame);
+	lua_getinfo(L, "nlSf", &Frame);
+
+	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6))
+		return 0;
+
+	Pos = vec2(lua_tonumber(L, 1), lua_tonumber(L, 2));
+	Dir = vec2(lua_tonumber(L, 3), lua_tonumber(L, 4));
+	StartEnergy = lua_tonumber(L, 5);
+	Owner = lua_tonumber(L, 6);
+
+	new CLaser(&pSelf->m_pServer->m_World, Pos, Dir, pSelf->m_pServer->Tuning()->m_LaserReach, Owner);		
+
+	return 0;
+}
