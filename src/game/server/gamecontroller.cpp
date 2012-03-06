@@ -134,7 +134,11 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 {
 	int Type = -1;
 	int SubType = 0;
-
+	GameServer()->m_pLua->m_EventListener.m_OnEntityPosIndex= ((int)(Pos.y/32))*GameServer()->Collision()->GetWidth()+(int)(Pos.x/32);
+	GameServer()->m_pLua->m_EventListener.m_OnEntityPosition= Pos;
+	GameServer()->m_pLua->m_EventListener.m_OnEntityIndex = Index;
+	GameServer()->m_pLua->m_EventListener.OnEvent("OnEntity");
+	Index = GameServer()->m_pLua->m_EventListener.m_OnEntityIndex;
 	if(Index == ENTITY_SPAWN)
 		m_aaSpawnPoints[0][m_aNumSpawnPoints[0]++] = Pos;
 	else if(Index == ENTITY_SPAWN_RED)
@@ -165,7 +169,7 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 		Type = POWERUP_NINJA;
 		SubType = WEAPON_NINJA;
 	}
-
+	
 	if(Type != -1)
 	{
 		CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType);

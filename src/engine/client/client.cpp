@@ -1557,26 +1557,35 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				m_ModFileCurrentChunk = 0;
 				Msg.AddInt(m_ModFileCurrentNumber);
 				Msg.AddInt(m_ModFileCurrentChunk); //request the first chunk
-				SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
-				
-				
-				
+				SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);				
 			}
 			else
-			{
+			{			
 				//File is up to date
 				if ((tmp.m_Flags&CModFile::FILEFLAG_LAUNCH))
 				{
 					char aBuf[1024];
-					Storage()->GetPath(IStorage::TYPE_SAVE, tmp.m_aFileDir, aBuf, sizeof(aBuf));
+					Storage()->GetPath(IStorage::TYPE_SAVE, aFileName, aBuf, sizeof(aBuf));
 					GameClient()->AddLuaFile(aBuf);
 					if(g_Config.m_Debug)
                     {                      
                         str_format(aBuf, sizeof(aBuf), "Launch %s", aBuf);
                         m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "lua", aBuf);
                     }
+				}					
+                if (m_ModFileNumber == m_ModFileCurrentNumber+1)
+                {
+                    m_FileDownloadAmount = 0;
+                    m_FileDownloadTotalSize = -1;
+					if(m_MapdownloadTotalsize == -1)
+						SendReady();
+                }else
+				{
+				
+					CMsgPacker Msg(NETMSG_REQUEST_FILE_INDEX);
+					Msg.AddInt(++m_ModFileCurrentNumber);
+					SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);				
 				}		
-			
 			}
         }
         else if(Msg == NETMSG_FILE_DATA)
@@ -1609,17 +1618,20 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					GameClient()->AddLuaFile(aBuf);
 				}
 
-				CMsgPacker Msg(NETMSG_REQUEST_FILE_INDEX);
-                Msg.AddInt(++m_ModFileCurrentNumber);
-                SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
-                if (m_FileDownloadAmount == m_FileDownloadTotalSize)
+				
+                if ((m_FileDownloadAmount == m_FileDownloadTotalSize)||(m_ModFileNumber == m_ModFileCurrentNumber+1))
                 {
                     m_FileDownloadAmount = 0;
                     m_FileDownloadTotalSize = -1;
                 }
                 if (m_FileDownloadTotalSize == -1 && m_MapdownloadTotalsize == -1)
                     SendReady();
-
+				else
+				{
+					CMsgPacker Msg(NETMSG_REQUEST_FILE_INDEX);
+					Msg.AddInt(++m_ModFileCurrentNumber);
+					SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+				}
 			}
 			else
 			{

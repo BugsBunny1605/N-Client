@@ -147,6 +147,16 @@ void CLuaFile::Init(const char *pFile)
 		//OnJump
 		lua_register(m_pLua, "JumpGetClientID", this->JumpGetClientID);
 		lua_register(m_pLua, "JumpGetJumpID", this->JumpGetJumpID);
+		
+		//OnTile
+		//lua_register(m_pLua, "GetOnTileIndex", this->GetOnTileIndex);
+		//lua_register(m_pLua, "GetOnTilePosIndex", this->GetOnTilePosIndex);
+		//lua_register(m_pLua, "SettOnTileIndex", this->SetOnTileIndex);
+
+		//OnEntity
+		lua_register(m_pLua, "GetOnEntityIndex", this->GetOnEntityIndex);
+		lua_register(m_pLua, "GetOnEntityPosIndex", this->GetOnEntityPosIndex);
+		lua_register(m_pLua, "SettOnEntityIndex", this->SetOnEntityIndex);
 
     //player
     lua_register(m_pLua, "GetPlayerName", this->GetPlayerName);
@@ -246,6 +256,9 @@ void CLuaFile::Init(const char *pFile)
 
     lua_register(m_pLua, "Win", this->Win);
 
+	lua_register(m_pLua, "GetJoinTeamClientID", this->GetJoinTeamClientID);
+	lua_register(m_pLua, "GetSelectedTeam", this->GetSelectedTeam);
+	lua_register(m_pLua, "AbortTeamJoin", this->AbortTeamJoin);
 
 
     lua_pushlightuserdata(m_pLua, this);

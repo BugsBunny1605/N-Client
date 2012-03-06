@@ -338,7 +338,6 @@ void CLuaFile::Init(const char *pFile)
         lua_pcall(m_pLua, 0, LUA_MULTRET, 0);
         ErrorFunc(m_pLua);
     }
-    lua_getglobal(m_pLua, "errorfunc");
     ErrorFunc(m_pLua);
 }
 

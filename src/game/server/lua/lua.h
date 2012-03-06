@@ -72,7 +72,15 @@ public:
 	int m_ExplosionWeapon;
 	vec2 m_ExplosionPos;
 	bool m_ExplosionAbort;
-
+	
+	//OnTile
+	//int m_OnTileIndex;
+	//int m_OnTilePosIndex;
+	//OnEntity
+	int m_OnEntityIndex;
+	int m_OnEntityPosIndex;
+	vec2 m_OnEntityPosition;
+	
 	//OnConnect
 	int m_OnClientConnectClientID;
 
@@ -81,6 +89,11 @@ public:
 
 	//OnCanSpawn
 	bool m_AbortSpawn;
+
+	//OnPlayerJoinTeam
+	int m_TeamJoinClientID;
+	int m_SelectedTeam;
+	bool m_AbortTeamJoin;
 };
 
 class CLuaFile
@@ -166,7 +179,13 @@ public:
     static inline int ExplosionGetWeapon(lua_State *L);
     static inline int ExplosionGetPos(lua_State *L);
     static inline int ExplosionAbort(lua_State *L);
-
+	//OnTile
+	//static inline int GetOnTileIndex(lua_State *L);
+	//static inline int SetOnTileIndex(lua_State *L);
+	//OnEntity
+	static inline int GetOnEntityIndex(lua_State *L);
+	static inline int SetOnEntityIndex(lua_State *L);
+	static inline int GetOnEntityPosIndex(lua_State *L);
     //
     //Include
     static inline int Include(lua_State *L);
@@ -268,7 +287,10 @@ public:
 
     static inline int Win(lua_State *L);
 
-
+	//OnPlayerJoinTeam
+	static inline int GetJoinTeamClientID(lua_State *L);
+	static inline int GetSelectedTeam(lua_State *L);
+	static inline int AbortTeamJoin(lua_State *L);
 };
 
 class CLua

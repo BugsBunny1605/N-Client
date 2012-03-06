@@ -844,6 +844,18 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		if(pPlayer->GetTeam() == pMsg->m_Team || (g_Config.m_SvSpamprotection && pPlayer->m_LastSetTeam && pPlayer->m_LastSetTeam+Server()->TickSpeed()*3 > Server()->Tick()))
 			return;
 
+		m_pLua->m_EventListener.m_TeamJoinClientID = ClientID;
+		m_pLua->m_EventListener.m_SelectedTeam = pMsg->m_Team;
+		m_pLua->m_EventListener.m_AbortTeamJoin = false;
+		m_pLua->m_EventListener.OnEvent("OnPlayerJoinTeam");
+		
+		if(m_pLua->m_EventListener.m_AbortTeamJoin)
+		{
+			//prevent spam
+			pPlayer->m_LastSetTeam = Server()->Tick();
+			return;
+		}
+
 		if(pPlayer->m_TeamChangeTick > Server()->Tick())
 		{
 			pPlayer->m_LastSetTeam = Server()->Tick();
