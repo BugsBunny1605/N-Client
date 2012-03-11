@@ -21,7 +21,7 @@ public:
 		const char *m_pName;
 		int m_Latency;
 	};
-	
+
 	int Tick() const { return m_CurrentGameTick; }
 	int TickSpeed() const { return m_TickSpeed; }
 
@@ -35,7 +35,7 @@ public:
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID) = 0;
 	virtual int SendMsgEx(CMsgPacker *pMsg, int Flags, int ClientID, bool System) = 0;
-	
+
 	virtual void AddModFile(const char *pFileDir, const char *pFileName, int Type, int Flags) = 0;
 	virtual void DeleteModFile(const char *pFileDir) = 0;
 	virtual void SendFile(int ClientID) = 0;
@@ -48,12 +48,12 @@ public:
 			return -1;
 		return SendMsg(&Packer, Flags, ClientID);
 	}
-	
+
 	virtual void SetClientName(int ClientID, char const *pName) = 0;
 	virtual void SetClientClan(int ClientID, char const *pClan) = 0;
 	virtual void SetClientCountry(int ClientID, int Country) = 0;
 	virtual void SetClientScore(int ClientID, int Score) = 0;
-	
+
 	virtual int SnapNewID() = 0;
 	virtual void SnapFreeID(int ID) = 0;
 	virtual void *SnapNewItem(int Type, int ID, int Size) = 0;
@@ -70,7 +70,7 @@ public:
 	virtual void Kick(int ClientID, const char *pReason) = 0;
 
 	virtual void DemoRecorder_HandleAutoStart() = 0;
-	
+
 };
 
 class IGameServer : public IInterface
@@ -81,17 +81,17 @@ public:
 	virtual void OnInit() = 0;
 	virtual void OnConsoleInit() = 0;
 	virtual void OnShutdown() = 0;
-	
+
 	virtual void OnTick() = 0;
 	virtual void OnPreSnap() = 0;
 	virtual void OnSnap(int ClientID) = 0;
 	virtual void OnPostSnap() = 0;
-	
+
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID) = 0;
-	
+
 	virtual void OnLuaPacket(CUnpacker *pUnpacker, int ClientID) = 0;
 
-	virtual void OnClientConnected(int ClientID) = 0;
+	virtual void OnClientConnected(int ClientID, bool IsDummy = false) = 0;
 	virtual void OnClientEnter(int ClientID) = 0;
 	virtual void OnClientDrop(int ClientID, const char *pReason) = 0;
 	virtual void OnClientDirectInput(int ClientID, void *pInput) = 0;
@@ -99,7 +99,7 @@ public:
 
 	virtual bool IsClientReady(int ClientID) = 0;
 	virtual bool IsClientPlayer(int ClientID) = 0;
-	
+
 	virtual const char *GameType() = 0;
 	virtual const char *Version() = 0;
 	virtual const char *NetVersion() = 0;

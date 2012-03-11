@@ -1088,6 +1088,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 
 				if(!pError)
 				{
+				    GameClient()->RenderLoading("Loading map...");
 					m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client/network", "loading done");
 					if (m_FileDownloadTotalSize == -1)
                         SendReady();
@@ -1187,6 +1188,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				m_MapdownloadTotalsize = -1;
 
 				// load map
+				GameClient()->RenderLoading("Loading map...");
 				pError = LoadMap(m_aMapdownloadName, m_aMapdownloadFilename, m_MapdownloadCrc);
 				if(!pError)
 				{
@@ -1200,6 +1202,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 		}
 		else if(Msg == NETMSG_CON_READY)
 		{
+		    GameClient()->RenderLoading("Loading map...");
 			GameClient()->OnConnected();
 		}
 		else if(Msg == NETMSG_PING)
@@ -1457,7 +1460,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
         {
             m_ModFileNumber = Unpacker.GetInt();
             m_FileDownloadTotalSize = Unpacker.GetInt();
-            
+
 			m_lModFiles.clear();
 			m_FileDownloadAmount = 0;
             if (m_ModFileNumber)
@@ -1491,7 +1494,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 
 			str_format(aFileCrc, sizeof(aFileCrc), "_%08x", FileCrc);
 			str_format(aFileName, sizeof(aFileName), "downloadedfiles/");
-			
+
 			if((tmp.m_Flags&CModFile::FILEFLAG_IGNORETYPE))
 			{
 				if (!(tmp.m_Flags&CModFile::FILEFLAG_NOCRC))
@@ -1518,7 +1521,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					str_append(aFileName, ".inv", sizeof(aFileName));
 			}
 			str_copy(tmp.m_aFileDir, aFileName, sizeof(aFileName)); //copy final filename into memory (for launch)
-			
+
 			bool bUpdate = false;
 			if((tmp.m_Flags&CModFile::FILEFLAG_UPDATE))
 				bUpdate = true;
@@ -1530,9 +1533,9 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				else
 					bUpdate = true;
 			}
-			
+
 			if(g_Config.m_Debug)
-            {  
+            {
 				char aBuf[256];
 				if(bUpdate)
 					str_format(aBuf, sizeof(aBuf), "File ('%s') needs Update", aFileName);
@@ -1540,11 +1543,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					str_format(aBuf, sizeof(aBuf), "File ('%s') is valid", aFileName);
                 m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "lua", aBuf);
             }
+            m_lModFiles.add(tmp);
 			if(bUpdate)
-			{	
+			{
 				//File needs update -> has to be downloaded again
-			
-				m_lModFiles.add(tmp);
 				if(m_FileDownloadHandle)
 					io_close(m_FileDownloadHandle);
 				m_FileDownloadHandle = Storage()->OpenFile(aFileName, IOFLAG_WRITE, IStorage::TYPE_SAVE);
@@ -1552,27 +1554,30 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				m_pFileDownloadCache = new char[tmp.m_Size];
 				for (int x = 0; x < ((float)tmp.m_Size - 1) / (1024.0f - 128.0f) + 1; x++)
 					m_pFileDownloadCache[x] = 0;
-				
+
 				CMsgPacker Msg(NETMSG_REQUEST_FILE_DATA);
 				m_ModFileCurrentChunk = 0;
 				Msg.AddInt(m_ModFileCurrentNumber);
 				Msg.AddInt(m_ModFileCurrentChunk); //request the first chunk
-				SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);				
+				SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
 			}
 			else
-			{			
+			{
+			    //add size -> downloadprogress
+			    m_FileDownloadAmount = m_FileDownloadAmount + FileSize;
 				//File is up to date
 				if ((tmp.m_Flags&CModFile::FILEFLAG_LAUNCH))
 				{
 					char aBuf[1024];
 					Storage()->GetPath(IStorage::TYPE_SAVE, aFileName, aBuf, sizeof(aBuf));
+                    GameClient()->RenderLoading("Loading Lua...");
 					GameClient()->AddLuaFile(aBuf);
 					if(g_Config.m_Debug)
-                    {                      
+                    {
                         str_format(aBuf, sizeof(aBuf), "Launch %s", aBuf);
                         m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "lua", aBuf);
                     }
-				}					
+				}
                 if (m_ModFileNumber == m_ModFileCurrentNumber+1)
                 {
                     m_FileDownloadAmount = 0;
@@ -1581,11 +1586,11 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 						SendReady();
                 }else
 				{
-				
+
 					CMsgPacker Msg(NETMSG_REQUEST_FILE_INDEX);
 					Msg.AddInt(++m_ModFileCurrentNumber);
-					SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);				
-				}		
+					SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+				}
 			}
         }
         else if(Msg == NETMSG_FILE_DATA)
@@ -1618,7 +1623,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					GameClient()->AddLuaFile(aBuf);
 				}
 
-				
+
                 if ((m_FileDownloadAmount == m_FileDownloadTotalSize)||(m_ModFileNumber == m_ModFileCurrentNumber+1))
                 {
                     m_FileDownloadAmount = 0;

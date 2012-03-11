@@ -29,6 +29,7 @@
 #include "commands/message.cpp"
 #include "commands/player.cpp"
 #include "commands/entities.cpp"
+#include "commands/dummy.cpp"
 
 CLuaFile::CLuaFile()
 {
@@ -147,7 +148,7 @@ void CLuaFile::Init(const char *pFile)
 		//OnJump
 		lua_register(m_pLua, "JumpGetClientID", this->JumpGetClientID);
 		lua_register(m_pLua, "JumpGetJumpID", this->JumpGetJumpID);
-		
+
 		//OnTile
 		//lua_register(m_pLua, "GetOnTileIndex", this->GetOnTileIndex);
 		//lua_register(m_pLua, "GetOnTilePosIndex", this->GetOnTilePosIndex);

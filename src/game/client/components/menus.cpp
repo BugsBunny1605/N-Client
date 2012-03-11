@@ -728,6 +728,28 @@ void CMenus::RenderLoading()
         Graphics()->UnloadTexture(sTextureLogo);
 }
 
+void CMenus::RenderLoadingEx(char *pText)
+{
+    CUIRect Screen = *UI()->Screen();
+	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
+
+	RenderBackground();
+    //Graphics()->Clear(1,1,1);
+
+	float x = Screen.w/2;
+	float y = Screen.h/2-15/2;
+
+	Graphics()->BlendNormal();
+
+    x = x - TextRender()->TextWidth(0, 15, pText, str_length(pText)) / 2;
+    TextRender()->Text(0, x, y, 15, pText, 0);
+    //Graphics()->QuadsText(x, y, 15.0f, 1, 1, 1, 1, pText);
+
+	Graphics()->Swap();
+	dbg_msg("", "-.-");
+    return;
+}
+
 void CMenus::RenderNews(CUIRect MainView)
 {
 	RenderTools()->DrawUIRect(&MainView, ms_ColorTabbarActive, CUI::CORNER_ALL, 10.0f);

@@ -72,7 +72,7 @@ public:
 	int m_ExplosionWeapon;
 	vec2 m_ExplosionPos;
 	bool m_ExplosionAbort;
-	
+
 	//OnTile
 	//int m_OnTileIndex;
 	//int m_OnTilePosIndex;
@@ -80,7 +80,7 @@ public:
 	int m_OnEntityIndex;
 	int m_OnEntityPosIndex;
 	vec2 m_OnEntityPosition;
-	
+
 	//OnConnect
 	int m_OnClientConnectClientID;
 
@@ -285,7 +285,12 @@ public:
     static inline int IncreaseAmmo(lua_State *L);
     static inline int SetAmmo(lua_State *L);
 
+    //this function should also tell the client which team
     static inline int Win(lua_State *L);
+
+    //Dummy
+    static inline int DummyCreate(lua_State *L);
+    static inline int IsDummy(lua_State *L);
 
 	//OnPlayerJoinTeam
 	static inline int GetJoinTeamClientID(lua_State *L);

@@ -1309,6 +1309,11 @@ void CGameClient::ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pU
 		((CGameClient*)pUserData)->SendInfo(false);
 }
 
+void CGameClient::RenderLoading(char *pText)
+{
+    m_pMenus->RenderLoadingEx(pText);
+}
+
 IGameClient *CreateGameClient()
 {
 	return &g_GameClient;

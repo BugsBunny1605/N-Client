@@ -34,6 +34,12 @@ void CCollision::Init(class CLayers *pLayers)
 		if(Index > 128)
 			continue;
 
+
+        //lua eventlistener
+        //OnCollisionInit
+        //OnCollisionInitGetIndex
+        //OnCollisionInitSetIndex
+
 		switch(Index)
 		{
 		case TILE_DEATH:
@@ -45,6 +51,8 @@ void CCollision::Init(class CLayers *pLayers)
 		case TILE_NOHOOK:
 			m_pTiles[i].m_Index = COLFLAG_SOLID|COLFLAG_NOHOOK;
 			break;
+        default:
+            m_pTiles[i].m_Index = 0; //do not delete this line - buggy on ddrace, ...
 		}
 	}
 }

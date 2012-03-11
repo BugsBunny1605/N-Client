@@ -165,7 +165,7 @@ public:
 
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID);
 
-	virtual void OnClientConnected(int ClientID);
+	virtual void OnClientConnected(int ClientID, bool IsDummy = false);
 	virtual void OnClientEnter(int ClientID);
 	virtual void OnClientDrop(int ClientID, const char *pReason);
 	virtual void OnClientDirectInput(int ClientID, void *pInput);
@@ -180,12 +180,11 @@ public:
 
 	//Lua n-client
 
-	virtual void OnLuaPacket(CUnpacker *pUnpacker, int ClientID); // TODO: MAKE THIS FUNCTION !!!>>Important<<!!!
+	virtual void OnLuaPacket(CUnpacker *pUnpacker, int ClientID);
 
 	class ILua *m_pLuaCore;
 	class CLua *m_pLua;
-
-	 //static void ConAddLuaFile(IConsole::IResult *pResult, void *pUserData);
+    //static void ConAddLuaFile(IConsole::IResult *pResult, void *pUserData);
 };
 
 inline int CmaskAll() { return -1; }

@@ -228,6 +228,8 @@ public:
 	virtual const char *NetVersionLua();
 
 
+    virtual void RenderLoading(char *pText);
+
 	// actions
 	// TODO: move these
 	void SendSwitchTeam(int Team);

@@ -428,7 +428,7 @@ void CGameContext::SwapTeams()
 }
 
 void CGameContext::OnTick()
-{ 
+{
 	// check tuning
 	CheckPureTuning();
 
@@ -575,7 +575,7 @@ void CGameContext::OnClientEnter(int ClientID)
 	m_pLua->m_EventListener.m_OnClientEnterClientID = -1;
 }
 
-void CGameContext::OnClientConnected(int ClientID)
+void CGameContext::OnClientConnected(int ClientID, bool IsDummy)
 {
 	// Check which team the player should be on
 	const int StartTeam = g_Config.m_SvTournamentMode ? TEAM_SPECTATORS : m_pController->GetAutoTeam(ClientID);
@@ -586,6 +586,12 @@ void CGameContext::OnClientConnected(int ClientID)
 
 	(void)m_pController->CheckTeamBalance();
 
+    //dummy? no sly-y!
+    m_apPlayers[ClientID]->m_IsDummy = IsDummy;
+    if (IsDummy == true)
+    {
+        return;
+    }
 #ifdef CONF_DEBUG
 	if(g_Config.m_DbgDummies)
 	{
@@ -848,7 +854,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		m_pLua->m_EventListener.m_SelectedTeam = pMsg->m_Team;
 		m_pLua->m_EventListener.m_AbortTeamJoin = false;
 		m_pLua->m_EventListener.OnEvent("OnPlayerJoinTeam");
-		
+
 		if(m_pLua->m_EventListener.m_AbortTeamJoin)
 		{
 			//prevent spam

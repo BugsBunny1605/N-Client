@@ -50,6 +50,7 @@ public:
 	int m_SpectatorID;
 
 	bool m_IsReady;
+	bool m_IsDummy;
 
 	//
 	int m_Vote;

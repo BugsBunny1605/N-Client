@@ -122,7 +122,7 @@ public:
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags) = 0;
 	virtual int SendMsgEx(CMsgPacker *pMsg, int Flags, bool System) = 0;
-	
+
 	virtual bool GetLuaSaveOption(int i) = 0;
 
 	template<class T>
@@ -163,9 +163,9 @@ public:
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker) = 0;
 	virtual void OnPredict() = 0;
 	virtual void OnActivateEditor() = 0;
-	
+
 	virtual void AddLuaFile(char *pFileName) = 0;
-	
+
 	virtual void OnLuaPacket(CUnpacker *pUnpacker) = 0;
 
 	virtual int OnSnapInput(int *pData, int *pPredictionData) = 0;
@@ -174,6 +174,8 @@ public:
 	virtual const char *Version() = 0;
 	virtual const char *NetVersion() = 0;
 	virtual const char *NetVersionLua() = 0;
+
+	virtual void RenderLoading(char *pText) = 0;
 };
 
 extern IGameClient *CreateGameClient();

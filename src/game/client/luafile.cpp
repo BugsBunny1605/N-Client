@@ -211,7 +211,7 @@ void CLuaFile::Init(const char *pFile)
     //Console Print
     lua_register(m_pLua, "Print", this->Print);
     lua_register(m_pLua, "Console", this->Console);
-    
+
     //Remote console
     lua_register(m_pLua, "RconAuth", this->RconAuth);
     lua_register(m_pLua, "RconAuthed", this->RconAuthed);
@@ -336,9 +336,11 @@ void CLuaFile::Init(const char *pFile)
     if (luaL_loadfile(m_pLua, m_aFilename) == 0)
     {
         lua_pcall(m_pLua, 0, LUA_MULTRET, 0);
-        ErrorFunc(m_pLua);
     }
-    ErrorFunc(m_pLua);
+    else
+    {
+        lua_error(m_pLua);
+    }
 }
 
 void CLuaFile::Close()
@@ -502,7 +504,12 @@ int CLuaFile::Include(lua_State *L)
         return 0;
     if (luaL_loadfile(L, lua_tostring(L, 1)) == 0)
     {
-        lua_pcall(L, 0, LUA_MULTRET, 0);
+        lua_pcall(L, 0, LUA_MULTRET, 0); //delete this line?
+        //does this line mean a full recall?
+    }
+    else
+    {
+        lua_error(L);
     }
 
     return 0;
