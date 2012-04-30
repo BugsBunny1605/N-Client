@@ -332,7 +332,12 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "errorfunc", this->ErrorFunc); //TODO: fix me
 	lua_getglobal(m_pLua, "errorfunc");
 
-
+    IOHANDLE File = io_open(m_aFilename, IOFLAG_READ);
+    if (!File)
+    {
+        dbg_msg("Lua", "File not found");
+        return;
+    }
     if (luaL_loadfile(m_pLua, m_aFilename) == 0)
     {
         lua_pcall(m_pLua, 0, LUA_MULTRET, 0);
@@ -877,7 +882,7 @@ int CLuaFile::GetPlayerColorFeet(lua_State *L)
             lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorFeet).g);
             lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorFeet).b);
             lua_pushnumber(L, 1.0f);
-            return 1;
+            return 4;
         }
     }
     return 0;
@@ -899,7 +904,7 @@ int CLuaFile::GetPlayerColorBody(lua_State *L)
             lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorBody).g);
             lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorBody).b);
             lua_pushnumber(L, 1.0f);
-            return 1;
+            return 4;
         }
     }
     return 0;
@@ -923,7 +928,7 @@ int CLuaFile::GetPlayerColorSkin(lua_State *L)
                 lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorBody).g);
                 lua_pushnumber(L, pSelf->m_pClient->m_pSkins->GetColorV3(pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_ColorBody).b);
                 lua_pushnumber(L, 1.0f);
-                return 1;
+                return 4;
             }
             else
             {
@@ -934,7 +939,7 @@ int CLuaFile::GetPlayerColorSkin(lua_State *L)
                     lua_pushnumber(L, s->m_BloodColor.g);
                     lua_pushnumber(L, s->m_BloodColor.b);
                     lua_pushnumber(L, 1.0f);
-                    return 1;
+                    return 4;
                 }
             }
         }
@@ -1462,8 +1467,9 @@ int CLuaFile::GetCharacterPos(lua_State *L)
 
     if (!lua_isnumber(L, 1))
         return 0;
-    lua_pushnumber(L, pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_X);
-    lua_pushnumber(L, pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_Y);
+    vec2 Pos = mix(vec2(pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Prev.m_X, pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Prev.m_Y), vec2(pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_X, pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_Y), pSelf->m_pClient->Client()->IntraGameTick());
+    lua_pushnumber(L, Pos.x);
+    lua_pushnumber(L, Pos.y);
     return 2;
 }
 
@@ -2972,9 +2978,9 @@ int CLuaFile::PlayWv(lua_State *L)
     if(!lua_isnumber(L, 1))
         return 0;
 
-    int Flags = ISound::FLAG_POS;
+	int Channel = CSounds::CHN_WORLD;
     if (lua_isnumber(L, 2) && lua_tointeger(L, 2) == 1)
-        Flags = 0;
+        Channel = CSounds::CHN_GLOBAL;
 
     float x = 0;
     float y = 0;
@@ -2985,7 +2991,7 @@ int CLuaFile::PlayWv(lua_State *L)
         y = lua_tonumber(L, 4);
     }
 
-    pSelf->m_pClient->Sound()->PlayAt(CSounds::CHN_WORLD, lua_tointeger(L, 1), Flags, x, y);
+    pSelf->m_pClient->Sound()->PlayAt(Channel, lua_tointeger(L, 1), 0, x, y);
     return 0;
 }
 
@@ -3419,23 +3425,18 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
 	int x = lua_tointeger(L, 2);
 	int y = lua_tointeger(L, 3);
 	int NewIndex = lua_tointeger(L, 4);
+
+    if(!pSelf->m_pClient->Layers()->GetGroup(Group))
+        return 0;
+
 	if(lua_isnumber(L, 5))
 	{
-		Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-		if(pSelf->m_pClient->Layers()->GetGroup(Group))
-			Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
-		else
-			return 0;
-		x = lua_tointeger(L, 3);
-		y = lua_tointeger(L, 4);
-		NewIndex = lua_tointeger(L, 5);
+		Group = clamp((int)lua_tointeger(L, 5), 0, pSelf->m_pClient->Layers()->NumGroups() - 1);
 	}
-	else
-		Index = clamp((int)Index, 0, pSelf->m_pClient->Layers()->NumLayers());
 
-	if(!pSelf->m_pClient->Layers()->GetGroup(Group))
-			return 0;
-	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    Index = clamp((int)Index, 0, pSelf->m_pClient->Layers()->NumLayers() - 1);
+
+	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer + Index);
 	if(!pLayer)
 		return 0;
 	if(pLayer->m_Type != LAYERTYPE_TILES)
@@ -3444,8 +3445,21 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
 	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
     CTile *pTiles = (CTile *)pSelf->m_pClient->Layers()->Map()->GetData(pTmap->m_Data);
 
+    x = clamp(x, 0, pTmap->m_Width - 1);
+    y = clamp(y, 0, pTmap->m_Height - 1);
 
 	pTiles[y*pTmap->m_Width+x].m_Index = NewIndex;
+	return 0;
+	for (int sx = 1; x-sx >= 0 && sx < 255; sx++)
+	{
+        if (pTiles[y*pTmap->m_Width+x - sx].m_Skip)
+        {
+            pTiles[y*pTmap->m_Width+x - sx].m_Skip = 0;sx - 1;
+            break;
+        }
+        if (pTiles[y*pTmap->m_Width+x - sx].m_Index)
+            break;
+	}
     return 0;
 }
 
@@ -3458,7 +3472,7 @@ int CLuaFile::RenderTilemapGenerateSkip(lua_State *L)
     lua_getinfo(L, "nlSf", &Frame);
 
 	if(pSelf->m_pClient->Layers() && pSelf->m_pClient->RenderTools())
-		pSelf->m_pClient->RenderTools()->RenderTilemapGenerateSkip(pSelf->m_pClient->Layers());
+		thread_create(pSelf->m_pClient->RenderTilemapGenerateSkipThread, pSelf->m_pClient);
     return 0;
 }
 

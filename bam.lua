@@ -18,7 +18,11 @@ function Script(name)
 	if family == "windows" then
 		return str_replace(name, "/", "\\")
 	end
-	return "python " .. name
+	if platform == "macosx" then
+        return "/Library/Frameworks/Python.framework/Versions/3.2/bin/python3.2 " .. name
+    else
+        return "python " .. name
+	end
 end
 
 function CHash(output, ...)
@@ -168,8 +172,8 @@ function build(settings)
 	else
 		settings.cc.flags:Add("-Wall", "-fexceptions")
 		if platform == "macosx" then
-			settings.cc.flags:Add("-mmacosx-version-min=10.5", "-isysroot /Developer/SDKs/MacOSX10.5.sdk")
-			settings.link.flags:Add("-mmacosx-version-min=10.5", "-isysroot /Developer/SDKs/MacOSX10.5.sdk")
+			settings.cc.flags:Add("-mmacosx-version-min=10.4", "-isysroot /Developer/SDKs/MacOSX10.4u.sdk")
+			settings.link.flags:Add("-mmacosx-version-min=10.4", "-isysroot /Developer/SDKs/MacOSX10.4u.sdk")
 		elseif config.stackprotector.value == 1 then
 			settings.cc.flags:Add("-fstack-protector", "-fstack-protector-all")
 			settings.link.flags:Add("-fstack-protector", "-fstack-protector-all")
@@ -235,6 +239,7 @@ function build(settings)
             client_settings.link.frameworks:Add("Carbon")
             client_settings.link.frameworks:Add("Cocoa")
             launcher_settings.link.frameworks:Add("Cocoa")
+            client_settings.link.flags:Add("-dylib_file /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib:/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib")
 		else
 			client_settings.link.libs:Add("X11")
 			client_settings.link.libs:Add("GL")
@@ -408,7 +413,7 @@ if platform == "macosx" then
 		x86_64_r = build(release_settings_x86_64)
 	end
 
-	DefaultTarget("game_debug_x86")
+	--DefaultTarget("game_debug_x86")
 
 	if arch == "ia32" then
 		PseudoTarget("release", ppc_r, x86_r)
