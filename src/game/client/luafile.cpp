@@ -54,6 +54,8 @@ void CLuaFile::Tick()
 {
     if (!g_Config.m_ClLua)
         return;
+    if (m_Error)
+        return;
 
     ErrorFunc(m_pLua);
 
@@ -62,8 +64,6 @@ void CLuaFile::Tick()
     PushInteger(m_pClient->m_NewTick);
     PushInteger(m_pClient->m_NewPredictedTick);
     FunctionExec();
-
-    ErrorFunc(m_pLua);
 }
 
 void CLuaFile::End()
@@ -101,13 +101,14 @@ void CLuaFile::Init(const char *pFile)
 
     str_copy(m_aFilename, pFile, sizeof(m_aFilename));
 
-    m_pLua = lua_open();
+    m_pLua = luaL_newstate();
     luaL_openlibs(m_pLua);
 
     lua_atpanic(m_pLua, &Panic);
 
     //include
     lua_register(m_pLua, "Include", this->Include);
+    luaL_dostring(m_pLua, "package.path = \"./?;./lua/?.lua;./lua/lib/?.lua;./lua/lib/socket/?.lua\"\n");
 
     //Settings
     lua_register(m_pLua, "SetScriptUseSettingPage", this->SetScriptUseSettingPage);
@@ -189,6 +190,7 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "GetLocalCharacterId", this->GetLocalCharacterId);
     lua_register(m_pLua, "GetCharacterPos", this->GetCharacterPos);
     lua_register(m_pLua, "GetCharacterVel", this->GetCharacterVel);
+    lua_register(m_pLua, "GetCharacterActiveWeapon", this->GetCharacterActiveWeapon);
 
     //Music
     lua_register(m_pLua, "MusicPlay", this->MusicPlay);
@@ -204,7 +206,7 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "SetConfigValue", this->SetConfigValue);
 
     lua_register(m_pLua, "GetControlValue", this->GetControlValue);
-    lua_register(m_pLua, "SetControlValue", this->SetControlValuePredicted); //for heinrich :*
+    lua_register(m_pLua, "SetControlValue", this->SetControlValue); //for heinrich :*
     lua_register(m_pLua, "SetControlValuePredicted", this->SetControlValuePredicted);
     lua_register(m_pLua, "UnSetControlValue", this->UnSetControlValue);
 
@@ -283,6 +285,8 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "UiGetParticleTextureID", this->UiGetParticleTextureID);
     lua_register(m_pLua, "UiGetFlagTextureID", this->UiGetFlagTextureID);
     lua_register(m_pLua, "UiDirectRect", this->UiDirectRect);
+    lua_register(m_pLua, "UiDirectLine", this->UiDirectLine);
+    lua_register(m_pLua, "UiDirectRectArray", this->UiDirectRectArray);
     lua_register(m_pLua, "BlendNormal", this->BlendNormal);
     lua_register(m_pLua, "BlendAdditive", this->BlendAdditive);
 
@@ -340,11 +344,18 @@ void CLuaFile::Init(const char *pFile)
     }
     if (luaL_loadfile(m_pLua, m_aFilename) == 0)
     {
-        lua_pcall(m_pLua, 0, LUA_MULTRET, 0);
+        if (lua_pcall(m_pLua, 0, LUA_MULTRET, 0))
+        {
+            dbg_msg("Error", "Fail");
+            ErrorFunc(m_pLua);
+            m_Error = 1;
+        }
     }
     else
     {
-        lua_error(m_pLua);
+        dbg_msg("Error", "Fail");
+        m_Error = 1;
+        ErrorFunc(m_pLua);
     }
 }
 
@@ -460,10 +471,13 @@ void CLuaFile::PushParameter(const char *pString)
 
 bool CLuaFile::FunctionExist(const char *pFunctionName)
 {
+    bool Ret = false;
     if (m_pLua == 0)
         return false;
     lua_getglobal(m_pLua, pFunctionName);
-    return lua_isfunction(m_pLua, lua_gettop(m_pLua));
+    Ret = lua_isfunction(m_pLua, -1);
+    lua_pop(m_pLua, 1);
+    return Ret;
 }
 
 void CLuaFile::FunctionPrepare(const char *pFunctionName)
@@ -471,29 +485,31 @@ void CLuaFile::FunctionPrepare(const char *pFunctionName)
     if (m_pLua == 0 || m_aFilename[0] == 0)
         return;
 
-    lua_pushstring (m_pLua, pFunctionName);
-    lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+    //lua_pushstring (m_pLua, pFunctionName);
+    //lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+    lua_getglobal(m_pLua, pFunctionName);
     m_FunctionVarNum = 0;
 }
 
-void CLuaFile::FunctionExec(const char *pFunctionName)
+int CLuaFile::FunctionExec(const char *pFunctionName)
 {
     if (m_pLua == 0)
-        return;
+        return 0;
     if (m_aFilename[0] == 0)
-        return;
+        return 0;
 
     if (pFunctionName)
     {
         if (FunctionExist(pFunctionName) == false)
-            return;
-        lua_pushstring (m_pLua, pFunctionName);
-        lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+            return 0;
+        FunctionPrepare(pFunctionName);
     }
-    lua_pcall(m_pLua, m_FunctionVarNum, LUA_MULTRET, 0);
+    int Ret = lua_pcall(m_pLua, m_FunctionVarNum, LUA_MULTRET, 0);
     ErrorFunc(m_pLua);
     m_FunctionVarNum = 0;
+    return Ret;
 }
+
 
 
 //functions
@@ -504,6 +520,17 @@ int CLuaFile::Include(lua_State *L)
     lua_Debug Frame;
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
+
+    //check if file exists
+    IOHANDLE CheckFile = io_open(lua_tostring(L, 1), IOFLAG_READ);
+    if (CheckFile)
+    {
+        io_close(CheckFile);
+    }
+    else
+    {
+        return 0;
+    }
 
     if (!lua_isstring(L, 1))
         return 0;
@@ -769,6 +796,7 @@ int CLuaFile::GetPlayerCountry(lua_State *L)
     {
         if (lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < MAX_CLIENTS)
         {
+            pSelf->m_pClient->m_UpdateScoreboard = true;
             lua_pushinteger(L, pSelf->m_pClient->m_aClients[lua_tointeger(L, 1)].m_Country);
             return 1;
         }
@@ -791,6 +819,7 @@ int CLuaFile::GetPlayerScore(lua_State *L)
             const CNetObj_PlayerInfo *pInfo = pSelf->m_pClient->m_Snap.m_paPlayerInfos[lua_tointeger(L, 1)];
             if (pInfo)
             {
+                pSelf->m_pClient->m_UpdateScoreboard = true;
                 lua_pushinteger(L, pInfo->m_Score);
                 return 1;
             }
@@ -816,6 +845,7 @@ int CLuaFile::GetPlayerPing(lua_State *L)
             const CNetObj_PlayerInfo *pInfo = pSelf->m_pClient->m_Snap.m_paPlayerInfos[lua_tointeger(L, 1)];
             if (pInfo)
             {
+                pSelf->m_pClient->m_UpdateScoreboard = true;
                 lua_pushinteger(L, pInfo->m_Latency);
                 return 1;
             }
@@ -1471,6 +1501,20 @@ int CLuaFile::GetCharacterPos(lua_State *L)
     lua_pushnumber(L, Pos.x);
     lua_pushnumber(L, Pos.y);
     return 2;
+}
+
+int CLuaFile::GetCharacterActiveWeapon(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isnumber(L, 1))
+        return 0;
+    lua_pushinteger(L, pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_Weapon);
+    return 1;
 }
 
 int CLuaFile::GetCharacterVel(lua_State *L)
@@ -2781,6 +2825,167 @@ int CLuaFile::UiDirectRect(lua_State *L)
     return 0;
 }
 
+//high speed rendering
+int CLuaFile::UiDirectRectArray(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+
+    pSelf->m_pClient->Graphics()->TextureSet(-1);
+    pSelf->m_pClient->Graphics()->QuadsBegin();
+
+    int64 Test = time_get();
+    int iX = 0;
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    while(lua_next(L, -2) != 0)
+    {
+        CUIRect Rect;
+        vec4 Color = vec4(0, 0, 0, 0.5f);
+        int Corners = CUI::CORNER_ALL;
+        float Rounding = 5.0f;
+
+        if (lua_istable(L, -1))
+        {
+            lua_pushvalue(L, -1);
+            lua_pushnil(L);
+            while(lua_next(L, -2) != 0)
+            {
+                if (str_comp(lua_tostring(L, -2), "x") == 0)
+                    Rect.x = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "y") == 0)
+                    Rect.y = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "h") == 0)
+                    Rect.h = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "w") == 0)
+                    Rect.w = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "r") == 0)
+                    Color.r = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "g") == 0)
+                    Color.g = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "b") == 0)
+                    Color.b = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "a") == 0)
+                    Color.a = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "corners") == 0)
+                    Corners = lua_tonumber(L, -1);
+                if (str_comp(lua_tostring(L, -2), "round") == 0)
+                    Rounding = lua_tonumber(L, -1);
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
+        pSelf->m_pClient->Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+        {
+            if (Rounding && Corners)
+            {
+                static IGraphics::CFreeformItem ArrayF[32];
+                int NumItems = 0;
+                for(int i = 0; i < 8; i+=2)
+                {
+                    float a1 = i/(float)8 * pi/2;
+                    float a2 = (i+1)/(float)8 * pi/2;
+                    float a3 = (i+2)/(float)8 * pi/2;
+                    float Ca1 = cosf(a1);
+                    float Ca2 = cosf(a2);
+                    float Ca3 = cosf(a3);
+                    float Sa1 = sinf(a1);
+                    float Sa2 = sinf(a2);
+                    float Sa3 = sinf(a3);
+
+                    if(Corners&1) // TL
+                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                        Rect.x+Rounding, Rect.y+Rounding,
+                        Rect.x+(1-Ca1)*Rounding, Rect.y+(1-Sa1)*Rounding,
+                        Rect.x+(1-Ca3)*Rounding, Rect.y+(1-Sa3)*Rounding,
+                        Rect.x+(1-Ca2)*Rounding, Rect.y+(1-Sa2)*Rounding);
+
+                    if(Corners&2) // TR
+                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                        Rect.x+Rect.w-Rounding, Rect.y+Rounding,
+                        Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+(1-Sa1)*Rounding,
+                        Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+(1-Sa3)*Rounding,
+                        Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+(1-Sa2)*Rounding);
+
+                    if(Corners&4) // BL
+                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                        Rect.x+Rounding, Rect.y+Rect.h-Rounding,
+                        Rect.x+(1-Ca1)*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
+                        Rect.x+(1-Ca3)*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
+                        Rect.x+(1-Ca2)*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
+
+                    if(Corners&8) // BR
+                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                        Rect.x+Rect.w-Rounding, Rect.y+Rect.h-Rounding,
+                        Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
+                        Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
+                        Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
+                }
+                pSelf->m_pClient->Graphics()->QuadsDrawFreeform(ArrayF, NumItems);
+            }
+            static IGraphics::CQuadItem ArrayQ[9];
+            int NumItems = 0;
+            ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rounding, Rect.y+Rounding, Rect.w-Rounding*2, Rect.h-Rounding*2); // center
+            ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rounding, Rect.y, Rect.w-Rounding*2, Rounding); // top
+            ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rounding, Rect.y+Rect.h-Rounding, Rect.w-Rounding*2, Rounding); // bottom
+            ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x, Rect.y+Rounding, Rounding, Rect.h-Rounding*2); // left
+            ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rect.w-Rounding, Rect.y+Rounding, Rounding, Rect.h-Rounding*2); // right
+
+            if(!(Corners&1)) ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x, Rect.y, Rounding, Rounding); // TL
+            if(!(Corners&2)) ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rect.w, Rect.y, -Rounding, Rounding); // TR
+            if(!(Corners&4)) ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x, Rect.y+Rect.h, Rounding, -Rounding); // BL
+            if(!(Corners&8)) ArrayQ[NumItems++] = IGraphics::CQuadItem(Rect.x+Rect.w, Rect.y+Rect.h, -Rounding, -Rounding); // BR
+
+            pSelf->m_pClient->Graphics()->QuadsDrawTL(ArrayQ, NumItems);
+        }
+        lua_pop(L, 1);
+        iX++;
+    }
+    char aBuf[128];
+    str_format(aBuf, sizeof(aBuf), "%f", 1.0f / ((float)(time_get() - Test) / (float)time_freq()));
+    pSelf->m_pClient->Console()->Print(0, "FPS", aBuf);
+    lua_pop(L, 1);
+    pSelf->m_pClient->Graphics()->QuadsEnd();
+    return 0;
+}
+
+int CLuaFile::UiDirectLine(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4))
+        return 0;
+
+    vec4 Color = vec4(0, 0, 0, 0.5f);
+
+    float x1 = lua_tonumber(L, 1);
+    float y1 = lua_tonumber(L, 2);
+    float x2 = lua_tonumber(L, 3);
+    float y2 = lua_tonumber(L, 4);
+
+    if (lua_isnumber(L, 5) && lua_isnumber(L, 6) && lua_isnumber(L, 7) && lua_isnumber(L, 8))
+        Color = vec4(lua_tonumber(L, 5), lua_tonumber(L, 6), lua_tonumber(L, 7), lua_tonumber(L, 8));
+
+    pSelf->m_pClient->Graphics()->TextureSet(-1);
+    pSelf->m_pClient->Graphics()->BlendNormal();
+    pSelf->m_pClient->Graphics()->LinesBegin();
+    pSelf->m_pClient->Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+    IGraphics::CLineItem Line;
+    Line = IGraphics::CLineItem(x1, y1, x2, y2);
+    pSelf->m_pClient->Graphics()->LinesDraw(&Line, 1);
+    pSelf->m_pClient->Graphics()->LinesEnd();
+
+    return 0;
+}
+
 int CLuaFile::BlendNormal(lua_State *L)
 {
     lua_getglobal(L, "pLUA");
@@ -3454,7 +3659,7 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
 	{
         if (pTiles[y*pTmap->m_Width+x - sx].m_Skip)
         {
-            pTiles[y*pTmap->m_Width+x - sx].m_Skip = 0;sx - 1;
+            pTiles[y*pTmap->m_Width+x - sx].m_Skip = sx - 1;
             break;
         }
         if (pTiles[y*pTmap->m_Width+x - sx].m_Index)

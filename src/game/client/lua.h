@@ -219,7 +219,7 @@ public:
     char m_aInfo[256];
 
     bool FunctionExist(const char *pFunctionName);
-    void FunctionExec(const char *pFunctionName = 0);
+    int FunctionExec(const char *pFunctionName = 0);
     void FunctionPrepare(const char *pFunctionName);
     void PushString(const char *pString);
     void PushInteger(int value);
@@ -227,6 +227,8 @@ public:
     void PushBoolean(bool value);
     void PushParameter(const char *pString);
     int m_FunctionVarNum;
+
+    int m_Error;
 
     //Functions:
     //Settings
@@ -285,12 +287,12 @@ public:
     static inline int GetLocalCharacterId(lua_State *L);
     static inline int GetCharacterPos(lua_State *L);
     static inline int GetCharacterVel(lua_State *L);
+    static inline int GetCharacterActiveWeapon(lua_State *L);
 
     //TODO:
     static inline int GetCharacterHookPos(lua_State *L);
     static inline int GetCharacterHookDir(lua_State *L);
     static inline int GetCharacterHookState(lua_State *L);
-    static inline int GetCharacterActiveWeapon(lua_State *L);
     static inline int GetCharacterWeaponAmmo(lua_State *L);
 
 
@@ -390,6 +392,11 @@ public:
     static inline int UiGetFlagTextureID(lua_State *L);
 
     static inline int UiDirectRect(lua_State *L);
+    static inline int UiDirectLine(lua_State *L);
+
+    //fast ui functions ;)
+    static inline int UiDirectRectArray(lua_State *L);
+
     static inline int BlendAdditive(lua_State *L);
     static inline int BlendNormal(lua_State *L);
 

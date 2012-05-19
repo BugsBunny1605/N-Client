@@ -386,18 +386,6 @@ void CGameContext::CheckPureTuning()
 	// might not be created yet during start up
 	if(!m_pController)
 		return;
-
-	if(	str_comp(m_pController->m_pGameType, "DM")==0 ||
-		str_comp(m_pController->m_pGameType, "TDM")==0 ||
-		str_comp(m_pController->m_pGameType, "CTF")==0)
-	{
-		CTuningParams p;
-		if(mem_comp(&p, &m_Tuning, sizeof(p)) != 0)
-		{
-			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "resetting tuning due to pure server");
-			m_Tuning = p;
-		}
-	}
 }
 
 void CGameContext::SendTuningParams(int ClientID)
@@ -468,12 +456,12 @@ void CGameContext::OnTick()
 				// count votes
 				char aaBuf[MAX_CLIENTS][NETADDR_MAXSTRSIZE] = {{0}};
 				for(int i = 0; i < MAX_CLIENTS; i++)
-					if(m_apPlayers[i])
+					if(m_apPlayers[i] && m_apPlayers[i]->GetCID() < Server()->MaxClients())
 						Server()->GetClientAddr(i, aaBuf[i], NETADDR_MAXSTRSIZE);
 				bool aVoteChecked[MAX_CLIENTS] = {0};
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if(!m_apPlayers[i] || m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || aVoteChecked[i])	// don't count in votes by spectators
+					if(!m_apPlayers[i] || m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || aVoteChecked[i] || m_apPlayers[i]->GetCID() >= Server()->MaxClients())	// don't count in votes by spectators
 						continue;
 
 					int ActVote = m_apPlayers[i]->m_Vote;
@@ -1399,7 +1387,6 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 		int KickID = str_toint(pValue);
 		if(KickID < 0 || KickID >= MAX_CLIENTS || !pSelf->m_apPlayers[KickID])
 		{
-			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid client id to kick");
 			return;
 		}
 
@@ -1421,7 +1408,6 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 		int SpectateID = str_toint(pValue);
 		if(SpectateID < 0 || SpectateID >= MAX_CLIENTS || !pSelf->m_apPlayers[SpectateID] || pSelf->m_apPlayers[SpectateID]->GetTeam() == TEAM_SPECTATORS)
 		{
-			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid client id to move");
 			return;
 		}
 

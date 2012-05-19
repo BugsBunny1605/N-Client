@@ -100,6 +100,7 @@ bool IGameController::CanSpawn(int Team, vec2 *pOutPos)
 	if(Team == TEAM_SPECTATORS)
 		return false;
 
+    m_pGameServer->m_pLua->m_EventListener.m_SpawnTeam = Team;
     m_pGameServer->m_pLua->m_EventListener.m_AbortSpawn = false;
     m_pGameServer->m_pLua->m_EventListener.OnEvent("OnCanSpawn");
     if (m_pGameServer->m_pLua->m_EventListener.m_AbortSpawn)
@@ -169,7 +170,7 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 		Type = POWERUP_NINJA;
 		SubType = WEAPON_NINJA;
 	}
-	
+
 	if(Type != -1)
 	{
 		CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType);
@@ -605,7 +606,7 @@ bool IGameController::CanJoinTeam(int Team, int NotThisID)
 	{
 		if(GameServer()->m_apPlayers[i] && i != NotThisID)
 		{
-			if(GameServer()->m_apPlayers[i]->GetTeam() >= TEAM_RED && GameServer()->m_apPlayers[i]->GetTeam() <= TEAM_BLUE)
+			if(GameServer()->m_apPlayers[i]->GetTeam() >= TEAM_RED && GameServer()->m_apPlayers[i]->GetTeam() <= TEAM_BLUE && GameServer()->m_apPlayers[i]->m_IsDummy == false)
 				aNumplayers[GameServer()->m_apPlayers[i]->GetTeam()]++;
 		}
 	}

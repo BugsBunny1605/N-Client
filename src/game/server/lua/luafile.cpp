@@ -110,13 +110,14 @@ void CLuaFile::Init(const char *pFile)
 
     str_copy(m_aFilename, pFile, sizeof(m_aFilename));
 
-    m_pLua = lua_open();
+    m_pLua = luaL_newstate();
     luaL_openlibs(m_pLua);
 
     lua_atpanic(m_pLua, &Panic);
 
     //include
     lua_register(m_pLua, "Include", this->Include);
+    luaL_dostring(m_pLua, "package.path = \"./lua/?.lua;./lua/lib/?.lua\"\n");
 
     //config
     lua_register(m_pLua, "SetScriptUseSettingPage", this->SetScriptUseSettingPage);
@@ -157,7 +158,7 @@ void CLuaFile::Init(const char *pFile)
 		//OnEntity
 		lua_register(m_pLua, "GetOnEntityIndex", this->GetOnEntityIndex);
 		lua_register(m_pLua, "GetOnEntityPosIndex", this->GetOnEntityPosIndex);
-		lua_register(m_pLua, "SettOnEntityIndex", this->SetOnEntityIndex);
+		lua_register(m_pLua, "SetOnEntityIndex", this->SetOnEntityIndex);
 
     //player
     lua_register(m_pLua, "GetPlayerName", this->GetPlayerName);
@@ -171,6 +172,7 @@ void CLuaFile::Init(const char *pFile)
 	lua_register(m_pLua, "GetPlayerColorBody", this->GetPlayerColorBody);
 	lua_register(m_pLua, "SetPlayerScore", this->SetPlayerScore);
 	lua_register(m_pLua, "SetPlayerName", this->SetPlayerName);
+	lua_register(m_pLua, "SetPlayerTeam", this->SetPlayerTeam);
 	lua_register(m_pLua, "SetPlayerClan", this->SetPlayerClan);
 	lua_register(m_pLua, "SetPlayerCountry", this->SetPlayerCountry);
 
@@ -214,11 +216,13 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "GetMapHeight", this->GetMapHeight);
 
     //Chat
+    lua_register(m_pLua, "SendBroadcast", this->SendBroadcast);
     lua_register(m_pLua, "SendChat", this->SendChat);
     lua_register(m_pLua, "SendChatTarget", this->SendChatTarget);
 
     //Entities
     lua_register(m_pLua, "EntityFind", this->EntityFind);
+    lua_register(m_pLua, "EntityGetCharacterId", this->EntityGetCharacterId);
     lua_register(m_pLua, "EntityGetPos", this->EntityGetPos);
     lua_register(m_pLua, "EntitySetPos", this->EntitySetPos);
     lua_register(m_pLua, "EntityDestroy", this->EntityDestroy);
@@ -253,21 +257,43 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "CharacterTakeDamage", this->CharacterTakeDamage);
     lua_register(m_pLua, "CharacterGetHealth", this->CharacterGetHealth);
     lua_register(m_pLua, "CharacterGetArmor", this->CharacterGetArmor);
-
-    lua_register(m_pLua, "AbortSpawn", this->AbortSpawn);
-
+    lua_register(m_pLua, "CharacterSetInputDirection", this->CharacterSetInputDirection);
+    lua_register(m_pLua, "CharacterSetInputJump", this->CharacterSetInputJump);
+    lua_register(m_pLua, "CharacterSetInputWeapon", this->CharacterSetInputWeapon);
+    lua_register(m_pLua, "CharacterSetInputTarget", this->CharacterSetInputTarget);
+    lua_register(m_pLua, "CharacterSetInputHook", this->CharacterSetInputHook);
+    lua_register(m_pLua, "CharacterSetInputFire", this->CharacterSetInputFire);
+    lua_register(m_pLua, "CharacterGetCoreJumped", this->CharacterGetCoreJumped);
     lua_register(m_pLua, "CharacterSpawn", this->CharacterSpawn);
     lua_register(m_pLua, "CharacterIsAlive", this->CharacterIsAlive);
-    lua_register(m_pLua, "IsGrounded", this->IsGrounded);
-    lua_register(m_pLua, "IncreaseHealth", this->IncreaseHealth);
-    lua_register(m_pLua, "IncreaseArmor", this->IncreaseArmor);
-    lua_register(m_pLua, "SetAmmo", this->SetAmmo);
+    lua_register(m_pLua, "CharacterKill", this->CharacterKill);
+    lua_register(m_pLua, "CharacterIsGrounded", this->CharacterIsGrounded);
+    lua_register(m_pLua, "CharacterIncreaseHealth", this->CharacterIncreaseHealth);
+    lua_register(m_pLua, "CharacterIncreaseArmor", this->CharacterIncreaseArmor);
+    lua_register(m_pLua, "CharacterSetAmmo", this->CharacterSetAmmo);
+    lua_register(m_pLua, "CharacterGetAmmo", this->CharacterGetAmmo);
+    lua_register(m_pLua, "CharacterGetInputTarget", this->CharacterGetInputTarget);
+    lua_register(m_pLua, "CharacterGetActiveWeapon", this->CharacterGetActiveWeapon);
+    lua_register(m_pLua, "CharacterDirectInput", this->CharacterDirectInput);
+    lua_register(m_pLua, "CharacterPredictedInput", this->CharacterPredictedInput);
+
+    lua_register(m_pLua, "DieGetVictimID", this->DieGetVictimID);
+    lua_register(m_pLua, "DieGetKillerID", this->DieGetKillerID);
+    lua_register(m_pLua, "DieGetWeaponID", this->DieGetWeaponID);
+
+    lua_register(m_pLua, "AbortSpawn", this->AbortSpawn);
+    lua_register(m_pLua, "SpawnGetTeam", this->SpawnGetTeam);
+
 
     lua_register(m_pLua, "Win", this->Win);
+    lua_register(m_pLua, "SetGametype", this->SetGametype);
 
 	lua_register(m_pLua, "GetJoinTeamClientID", this->GetJoinTeamClientID);
 	lua_register(m_pLua, "GetSelectedTeam", this->GetSelectedTeam);
 	lua_register(m_pLua, "AbortTeamJoin", this->AbortTeamJoin);
+
+	lua_register(m_pLua, "DummyCreate", this->DummyCreate);
+	lua_register(m_pLua, "IsDummy", this->IsDummy);
 
 
     lua_pushlightuserdata(m_pLua, this);
@@ -404,10 +430,13 @@ void CLuaFile::PushParameter(const char *pString)
 
 bool CLuaFile::FunctionExist(const char *pFunctionName)
 {
+    bool Ret = false;
     if (m_pLua == 0)
         return false;
     lua_getglobal(m_pLua, pFunctionName);
-    return lua_isfunction(m_pLua, lua_gettop(m_pLua));
+    Ret = lua_isfunction(m_pLua, -1);
+    lua_pop(m_pLua, 1);
+    return Ret;
 }
 
 void CLuaFile::FunctionPrepare(const char *pFunctionName)
@@ -415,8 +444,9 @@ void CLuaFile::FunctionPrepare(const char *pFunctionName)
     if (m_pLua == 0 || m_aFilename[0] == 0)
         return;
 
-    lua_pushstring (m_pLua, pFunctionName);
-    lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+    //lua_pushstring (m_pLua, pFunctionName);
+    //lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+    lua_getglobal(m_pLua, pFunctionName);
     m_FunctionVarNum = 0;
 }
 
@@ -431,8 +461,7 @@ void CLuaFile::FunctionExec(const char *pFunctionName)
     {
         if (FunctionExist(pFunctionName) == false)
             return;
-        lua_pushstring (m_pLua, pFunctionName);
-        lua_gettable (m_pLua, LUA_GLOBALSINDEX);
+        FunctionPrepare(pFunctionName);
     }
     lua_pcall(m_pLua, m_FunctionVarNum, LUA_MULTRET, 0);
     ErrorFunc(m_pLua);
