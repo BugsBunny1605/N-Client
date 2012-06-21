@@ -31,7 +31,7 @@ CLuaFile::~CLuaFile()
 {
     End();
     #ifndef CONF_PLATFORM_MACOSX
-    if (m_pLua)
+    if (m_pLua) //there are some problems with this on mac osx
         lua_close(m_pLua);
     m_pLua = 0;
     #endif
@@ -60,9 +60,8 @@ void CLuaFile::Tick()
     ErrorFunc(m_pLua);
 
     FunctionPrepare("Tick");
-    PushInteger((int)(time_get() * 10 / time_freq()));
-    PushInteger(m_pClient->m_NewTick);
-    PushInteger(m_pClient->m_NewPredictedTick);
+    PushInteger((int)(time_get() * 50 / time_freq()));
+    PushInteger(m_pClient->GetPredictedTick());
     FunctionExec();
 }
 
@@ -71,6 +70,14 @@ void CLuaFile::End()
     if (m_pLua == 0)
         return;
 
+    //try to call the end function
+    //Maybe the lua file need to save data eg. a ConfigFile
+    FunctionExec("end");
+
+    //free everything
+
+    m_pLuaHandler->m_EventListener.RemoveAllEventListeners(this);
+
     for (array<int>::range r = m_lTextures.all(); !r.empty(); r.pop_front())
     {
         if (g_pData->m_aImages[IMAGE_GAME].m_Id == r.front())
@@ -78,11 +85,13 @@ void CLuaFile::End()
         m_pClient->Graphics()->UnloadTexture(r.front());
     }
 
-    m_pLuaHandler->m_EventListener.RemoveAllEventListeners(this);
-
-    //try to call the end function
-    //Maybe the lua file need to save data eg. a ConfigFile
-    FunctionExec("end");
+    //clear
+    mem_zero(m_aUiElements, sizeof(m_aUiElements));
+    mem_zero(m_aTitle, sizeof(m_aTitle));
+    mem_zero(m_aInfo, sizeof(m_aInfo));
+    mem_zero(m_aFilename, sizeof(m_aFilename));
+    m_HaveSettings = 0;
+    m_FunctionVarNum = 0;
 }
 
 int CLuaFile::Panic(lua_State *L)
@@ -333,6 +342,16 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, "TimeGet", this->TimeGet);
     lua_register(m_pLua, "FPS", this->FPS);
 
+    //version
+    lua_register(m_pLua, "CheckVersion", this->CheckVersion);
+    lua_register(m_pLua, "GetVersion", this->GetVersion);
+
+    //sound hooks
+    lua_register(m_pLua, "GetWaveFrameSize", this->GetWaveFrameSize);
+    lua_register(m_pLua, "AddWaveToStream", this->AddWaveToStream);
+    lua_register(m_pLua, "FloatToShortChars", this->FloatToShortChars);
+    lua_register(m_pLua, "GetWaveBufferSpace", this->GetWaveBufferSpace);
+
 
 
     lua_pushlightuserdata(m_pLua, this);
@@ -366,18 +385,16 @@ void CLuaFile::Init(const char *pFile)
 
 void CLuaFile::Close()
 {
+    //Run the End function
+    //-Calls the end function in lua
+    //-Deletes eventlistener
+    //-Frees textures
+    End();
+
     //kill lua
     if (m_pLua)
         lua_close(m_pLua);
     m_pLua = 0;
-
-    //clear
-    mem_zero(m_aUiElements, sizeof(m_aUiElements));
-    mem_zero(m_aTitle, sizeof(m_aTitle));
-    mem_zero(m_aInfo, sizeof(m_aInfo));
-    mem_zero(m_aFilename, sizeof(m_aFilename));
-    m_HaveSettings = 0;
-    m_FunctionVarNum = 0;
 }
 
 int CLuaFile::ErrorFunc(lua_State *L)
@@ -3957,5 +3974,102 @@ int CLuaFile::FPS(lua_State *L)
     lua_getinfo(L, "nlSf", &Frame);
 
     lua_pushnumber(L, 1.0f / pSelf->m_pClient->Client()->FrameTime());
+    return 1;
+}
+
+int CLuaFile::CheckVersion(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (lua_isstring(L, 1))
+        lua_pushboolean(L, str_comp(GAME_LUA_VERSION, lua_tostring(L, 1)) == 0);
+    else
+        lua_pushboolean(L, false);
+    return 1;
+}
+
+int CLuaFile::GetVersion(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    lua_pushstring(L, GAME_LUA_VERSION);
+    return 1;
+}
+
+int CLuaFile::GetWaveFrameSize(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    lua_pushinteger(L, pSelf->m_pClient->Sound()->GetWaveFrameSize());
+    return 1;
+}
+
+int CLuaFile::GetWaveBufferSpace(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    lua_pushinteger(L, pSelf->m_pClient->Sound()->GetWaveBufferSpace());
+    return 1;
+}
+
+int CLuaFile::AddWaveToStream(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isstring(L, 1))
+        return 0;
+
+    size_t Size = 0;
+    const char *pData = lua_tolstring(L, 1, &Size);
+    if (Size != pSelf->m_pClient->Sound()->GetWaveFrameSize())
+        dbg_msg("msg", "got: %i - wanted: %i", Size, pSelf->m_pClient->Sound()->GetWaveFrameSize()); //quote: westerwave
+    lua_pushinteger(L, pSelf->m_pClient->Sound()->AddWaveToStream(pData));
+    return 1;
+}
+
+static short Int2Short(int i)
+{
+	if(i > 0x7fff)
+		return 0x7fff;
+	else if(i < -0x7fff)
+		return -0x7fff;
+	return i;
+}
+
+int CLuaFile::FloatToShortChars(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isnumber(L, 1))
+        return 0;
+
+    float Value = clamp((float)lua_tonumber(L, 1), -1.0f, 1.0f);
+    short Ret = Int2Short(Value * 32767);
+    swap_endian(&Ret, 2, 1);
+    lua_pushlstring(L, (char *)&Ret, 2);
     return 1;
 }
