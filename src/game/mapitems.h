@@ -10,6 +10,7 @@ enum
 	LAYERTYPE_GAME, // not used
 	LAYERTYPE_TILES,
 	LAYERTYPE_QUADS,
+	LAYERTYPE_LUA = 64, //space for the devs
 
 	MAPITEMTYPE_VERSION=0,
 	MAPITEMTYPE_INFO,
@@ -134,6 +135,25 @@ struct CMapItemLayer
 } ;
 
 struct CMapItemLayerTilemap
+{
+	CMapItemLayer m_Layer;
+	int m_Version;
+
+	int m_Width;
+	int m_Height;
+	int m_Flags;
+
+	CColor m_Color;
+	int m_ColorEnv;
+	int m_ColorEnvOffset;
+
+	int m_Image;
+	int m_Data;
+
+	int m_aName[3];
+} ;
+
+struct CMapItemLayerLua
 {
 	CMapItemLayer m_Layer;
 	int m_Version;

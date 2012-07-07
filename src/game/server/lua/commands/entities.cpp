@@ -405,26 +405,46 @@ int CLuaFile::CharacterGetArmor(lua_State *L)
 //LaserCreate(Pos.x, Pos.y, Dir.x, Dir.y, StartEnergy, Owner)
 int CLuaFile::LaserCreate(lua_State *L)
 {
-	vec2 Pos;
-	vec2 Dir;
-	int StartEnergy;
-	int Owner;
-
 	lua_getglobal(L, "pLUA");
 	CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
 	lua_Debug Frame;
 	lua_getstack(L, 1, &Frame);
 	lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6))
+
+	vec2 Pos;
+	vec2 Dir;
+	float StartEnergy = pSelf->m_pServer->Tuning()->m_LaserReach;
+	int Owner;
+	int Damage = -1;
+	int MaxBounces = -1;
+	int Delay = -1;
+	int FakeEvalTick = -1;
+	bool AutoDestroy = true;
+	float DecreaseEnergyFactor = 1.0f;
+
+	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5))
 		return 0;
 
 	Pos = vec2(lua_tonumber(L, 1), lua_tonumber(L, 2));
 	Dir = vec2(lua_tonumber(L, 3), lua_tonumber(L, 4));
-	StartEnergy = lua_tonumber(L, 5);
-	Owner = lua_tonumber(L, 6);
+	Owner = lua_tointeger(L, 5);
+	if (lua_tointeger(L, 6))
+        StartEnergy = lua_tonumber(L, 6);
+	if (lua_isnumber(L, 7))
+        Damage = lua_tointeger(L, 7);
+	if (lua_isnumber(L, 8))
+        MaxBounces = lua_tointeger(L, 8);
+	if (lua_isnumber(L, 9))
+        Delay = lua_tointeger(L, 9);
+	if (lua_isnumber(L, 10))
+        FakeEvalTick = lua_tointeger(L, 10);
+	if (lua_isboolean(L, 11))
+        AutoDestroy = lua_toboolean(L, 11);
+	if (lua_isboolean(L, 12))
+        DecreaseEnergyFactor = lua_tonumber(L, 12);
 
-	new CLaser(&pSelf->m_pServer->m_World, Pos, Dir, pSelf->m_pServer->Tuning()->m_LaserReach, Owner);
-
-	return 0;
+	CLaser *pTmp = new CLaser(&pSelf->m_pServer->m_World, Pos, Dir, StartEnergy, Owner, Damage, MaxBounces, Delay, FakeEvalTick, AutoDestroy, DecreaseEnergyFactor);
+    lua_pushinteger(L, pTmp->GetID());
+	return 1;
 }

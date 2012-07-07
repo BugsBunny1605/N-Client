@@ -4,15 +4,24 @@
 #include <game/server/gamecontext.h>
 #include "laser.h"
 
-CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner)
+CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Damage, int MaxBounces, int Delay, int FakeEvalTick, bool AutoDestroy, float DecreaseEnergyFactor)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
 {
 	m_Pos = Pos;
 	m_Owner = Owner;
 	m_Energy = StartEnergy;
+    m_Damage = (Damage != -1) ? Damage : GameServer()->Tuning()->m_LaserDamage;
 	m_Dir = Direction;
 	m_Bounces = 0;
+	m_MaxBounces = (MaxBounces != -1) ? MaxBounces : GameServer()->Tuning()->m_LaserBounceNum;
+	m_Delay = (Delay != -1) ? Delay : GameServer()->Tuning()->m_LaserBounceDelay;
+	m_AutoDestroy = AutoDestroy;
+	m_DecreaseEnergyFactor = DecreaseEnergyFactor;
 	m_EvalTick = 0;
+	m_FakeEvalTick = FakeEvalTick;
+	dbg_msg("MB", "%i", m_MaxBounces);
+	dbg_msg("De", "%i", m_Delay);
+	dbg_msg("Da", "%i", m_Damage);
 	GameWorld()->InsertEntity(this);
 	DoBounce();
 }
@@ -29,20 +38,20 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	m_From = From;
 	m_Pos = At;
 	m_Energy = -1;
-	pHit->TakeDamage(vec2(0.f, 0.f), GameServer()->Tuning()->m_LaserDamage, m_Owner, WEAPON_RIFLE);
+	pHit->TakeDamage(vec2(0.f, 0.f), m_Damage, m_Owner, WEAPON_RIFLE);
 	return true;
 }
 
 void CLaser::DoBounce()
 {
 	m_EvalTick = Server()->Tick();
-	
-	if(m_Energy < 0)
+
+	if(m_Energy < 0 && m_AutoDestroy)
 	{
 		GameServer()->m_World.DestroyEntity(this);
 		return;
 	}
-	
+
 	vec2 To = m_Pos + m_Dir * m_Energy;
 
 	if(GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To))
@@ -55,17 +64,17 @@ void CLaser::DoBounce()
 
 			vec2 TempPos = m_Pos;
 			vec2 TempDir = m_Dir * 4.0f;
-			
+
 			GameServer()->Collision()->MovePoint(&TempPos, &TempDir, 1.0f, 0);
 			m_Pos = TempPos;
 			m_Dir = normalize(TempDir);
-			
-			m_Energy -= distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost;
+
+			m_Energy -= (distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost) * m_DecreaseEnergyFactor;
 			m_Bounces++;
-			
-			if(m_Bounces > GameServer()->Tuning()->m_LaserBounceNum)
+
+			if(m_Bounces > m_MaxBounces)
 				m_Energy = -1;
-				
+
 			GameServer()->CreateSound(m_Pos, SOUND_RIFLE_BOUNCE);
 		}
 	}
@@ -79,7 +88,7 @@ void CLaser::DoBounce()
 		}
 	}
 }
-	
+
 void CLaser::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
@@ -87,7 +96,7 @@ void CLaser::Reset()
 
 void CLaser::Tick()
 {
-	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*m_Delay)/1000.0f)
 		DoBounce();
 }
 
@@ -104,5 +113,5 @@ void CLaser::Snap(int SnappingClient)
 	pObj->m_Y = (int)m_Pos.y;
 	pObj->m_FromX = (int)m_From.x;
 	pObj->m_FromY = (int)m_From.y;
-	pObj->m_StartTick = m_EvalTick;
+	pObj->m_StartTick = (m_FakeEvalTick != -1) ? m_FakeEvalTick : m_EvalTick;
 }

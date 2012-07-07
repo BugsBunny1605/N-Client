@@ -114,7 +114,7 @@ int CLuaFile::CharacterSpawn(lua_State *L)
             if (lua_isnumber(L, 2) && lua_isnumber(L, 3))
                 pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->Spawn(vec2(lua_tonumber(L, 2), lua_tonumber(L, 3)));
             else
-                pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->TryRespawn();
+                pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->TryRespawn(true);
 			return 0;
         }
     }
@@ -437,6 +437,14 @@ int CLuaFile::CharacterSetAmmo(lua_State *L)
     {
         if(lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < MAX_CLIENTS && pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)] && pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter())
         {
+            if (lua_tointeger(L, 2) == WEAPON_NINJA)
+            {
+                if (lua_isnumber(L, 3) && lua_tointeger(L, 3))
+                    pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter()->GiveNinja(lua_isnumber(L, 4) ? lua_tointeger(L, 4) : 0);
+                else
+                    pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter()->TakeNinja();
+
+            }
             pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter()->m_aWeapons[lua_tointeger(L, 2)].m_Ammo = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 10;
             pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter()->m_aWeapons[lua_tointeger(L, 2)].m_Got = (pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter()->m_aWeapons[lua_tointeger(L, 2)].m_Ammo != 0);
         }
@@ -464,3 +472,27 @@ int CLuaFile::CharacterGetAmmo(lua_State *L)
     return 0;
 }
 
+int CLuaFile::SendCharacterInfo(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (lua_isnumber(L, 1))
+    {
+        if(lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < MAX_CLIENTS && pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)] && pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->GetCharacter())
+        {
+            pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->Snap(-1);
+            //or
+            /*
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                pSelf->m_pServer->m_apPlayers[lua_tointeger(L, 1)]->Snap(i);
+            }
+            */
+        }
+    }
+    return 0;
+}

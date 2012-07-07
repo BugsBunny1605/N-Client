@@ -92,7 +92,7 @@ void IGameController::EvaluateSpawnType(CSpawnEval *pEval, int Type)
 	}
 }
 
-bool IGameController::CanSpawn(int Team, vec2 *pOutPos)
+bool IGameController::CanSpawn(int Team, vec2 *pOutPos, bool Force)
 {
 	CSpawnEval Eval;
 
@@ -100,10 +100,15 @@ bool IGameController::CanSpawn(int Team, vec2 *pOutPos)
 	if(Team == TEAM_SPECTATORS)
 		return false;
 
-    m_pGameServer->m_pLua->m_EventListener.m_SpawnTeam = Team;
-    m_pGameServer->m_pLua->m_EventListener.m_AbortSpawn = false;
-    m_pGameServer->m_pLua->m_EventListener.OnEvent("OnCanSpawn");
-    if (m_pGameServer->m_pLua->m_EventListener.m_AbortSpawn)
+    if (m_pGameServer->m_AutoRespawn == false && Force == false)
+        return false;
+    if (Force)
+    {
+        return true;
+    }
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(Team);
+    m_pGameServer->m_pLua->m_pEventListener->OnEvent("OnCanSpawn");
+    if (m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].GetType() != CEventVariable::EVENT_TYPE_INVALID && m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].GetInteger() == 0)
         return false;
 
 	if(IsTeamplay())
@@ -135,11 +140,12 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 {
 	int Type = -1;
 	int SubType = 0;
-	GameServer()->m_pLua->m_EventListener.m_OnEntityPosIndex= ((int)(Pos.y/32))*GameServer()->Collision()->GetWidth()+(int)(Pos.x/32);
-	GameServer()->m_pLua->m_EventListener.m_OnEntityPosition= Pos;
-	GameServer()->m_pLua->m_EventListener.m_OnEntityIndex = Index;
-	GameServer()->m_pLua->m_EventListener.OnEvent("OnEntity");
-	Index = GameServer()->m_pLua->m_EventListener.m_OnEntityIndex;
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(Pos.x);
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(Pos.y);
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(Index);
+	GameServer()->m_pLua->m_pEventListener->OnEvent("OnEntity");
+	if (m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].IsNumeric())
+        Index = m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].GetInteger();
 	if(Index == ENTITY_SPAWN)
 		m_aaSpawnPoints[0][m_aNumSpawnPoints[0]++] = Pos;
 	else if(Index == ENTITY_SPAWN_RED)
@@ -388,6 +394,13 @@ void IGameController::DoWarmup(int Seconds)
 
 bool IGameController::IsFriendlyFire(int ClientID1, int ClientID2)
 {
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(ClientID1);
+    m_pGameServer->m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(ClientID2);
+    m_pGameServer->m_pLua->m_pEventListener->OnEvent("OnFriendlyFire");
+    if (m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].IsNumeric())
+    {
+        return m_pGameServer->m_pLua->m_pEventListener->m_Returns.m_aVars[0].GetInteger();
+    }
 	if(ClientID1 == ClientID2)
 		return false;
     if (ClientID1 < 0 || ClientID1 >= MAX_CLIENTS || ClientID2 < 0 || ClientID2 >= MAX_CLIENTS)

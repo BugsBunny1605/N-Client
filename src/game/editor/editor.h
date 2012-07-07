@@ -336,6 +336,9 @@ public:
 	// io
 	int Save(class IStorage *pStorage, const char *pFilename);
 	int Load(class IStorage *pStorage, const char *pFilename, int StorageType);
+
+	//Lua
+	char *m_pLuaData;
 };
 
 
@@ -365,6 +368,16 @@ typedef struct
 	int x, y;
 	int w, h;
 } RECTi;
+
+class CLayerLua : public CLayer
+{
+public:
+	CLayerLua();
+	~CLayerLua();
+	virtual int RenderProperties(CUIRect *pToolbox);
+
+	char m_aLuaCode[8192];
+};
 
 class CLayerTiles : public CLayer
 {
@@ -411,6 +424,8 @@ public:
 	int m_ColorEnv;
 	int m_ColorEnvOffset;
 	CTile *m_pTiles;
+
+	CLayerLua m_LuaLayer;
 };
 
 class CLayerQuads : public CLayer
@@ -535,6 +550,7 @@ public:
 		m_ShowEnvelopeEditor = 0;
 		m_ShowUndo = 0;
 		m_UndoScrollValue = 0.0f;
+		m_ShowLua = 0;
 
 		m_ShowEnvelopePreview = 0;
 		m_SelectedQuadEnvelope = -1;
@@ -565,6 +581,9 @@ public:
 	bool m_Undo;
 	int m_ShowUndo;
 	float m_UndoScrollValue;
+
+    //Lua editor
+	int m_ShowLua;
 
 
 	void FilelistPopulate(int StorageType);
@@ -612,6 +631,7 @@ public:
 	{
 		FILETYPE_MAP,
 		FILETYPE_IMG,
+		FILETYPE_LUA,
 
 		MAX_PATH_LENGTH = 512
 	};
@@ -738,6 +758,7 @@ public:
 	static void CallbackOpenMap(const char *pFileName, int StorageType, void *pUser);
 	static void CallbackAppendMap(const char *pFileName, int StorageType, void *pUser);
 	static void CallbackSaveMap(const char *pFileName, int StorageType, void *pUser);
+	static void CallbackOpenLua(const char *pFileName, int StorageType, void *pUser);
 
 	void PopupSelectImageInvoke(int Current, float x, float y);
 	int PopupSelectImageResult();
@@ -769,6 +790,7 @@ public:
 	void RenderStatusbar(CUIRect View);
 	void RenderEnvelopeEditor(CUIRect View);
 	void RenderUndoList(CUIRect View);
+	void RenderLuaEditor(CUIRect View);
 
 	void RenderMenubar(CUIRect Menubar);
 	void RenderFileDialog();

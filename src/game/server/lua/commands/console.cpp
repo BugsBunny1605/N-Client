@@ -11,10 +11,11 @@ int CLuaFile::Console(lua_State *L)
 
     if (lua_tointeger(L, 1))
     {
-            pSelf->m_pServer->Console()->Print(lua_tointeger(L, 1), lua_tostring(L, 2), lua_tostring(L, 3));
+        pSelf->m_pServer->Console()->Print(lua_tointeger(L, 1), lua_tostring(L, 2), lua_tostring(L, 3));
     }
     return 0;
 }
+
 int CLuaFile::Print(lua_State *L)
 {
     lua_getglobal(L, "pLUA");

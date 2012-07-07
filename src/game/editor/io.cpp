@@ -303,6 +303,18 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 
 				GItem.m_NumLayers++;
 				LayerCount++;
+
+				if (pLayer->m_LuaLayer.m_aLuaCode[0]) //save lua code
+				{
+                    CMapItemLayerLua LuaItem;
+                    LuaItem.m_Version = 1;
+                    LuaItem.m_Layer.m_Flags = 0;
+                    LuaItem.m_Layer.m_Type = LAYERTYPE_LUA;
+                    LuaItem.m_Data = df.AddData(str_length(pLayer->m_LuaLayer.m_aLuaCode) + 1, pLayer->m_LuaLayer.m_aLuaCode);
+                    df.AddItem(MAPITEMTYPE_LAYER, LayerCount, sizeof(LuaItem), &LuaItem);
+                    GItem.m_NumLayers++;
+                    LayerCount++;
+				}
 			}
 			else if(pGroup->m_lLayers[l]->m_Type == LAYERTYPE_QUADS)
 			{
@@ -366,6 +378,7 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 	}
 
 	df.AddItem(MAPITEMTYPE_ENVPOINTS, 0, TotalSize, pPoints);
+
 
 	// finish the data file
 	df.Finish();
@@ -502,6 +515,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 				if(pGItem->m_Version >= 3)
 					IntsToStr(pGItem->m_aName, sizeof(pGroup->m_aName)/sizeof(int), pGroup->m_aName);
 
+                CLayerTiles *pLastTiles = 0;
 				for(int l = 0; l < pGItem->m_NumLayers; l++)
 				{
 					CLayer *pLayer = 0;
@@ -552,6 +566,16 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 						}
 
 						DataFile.UnloadData(pTilemapItem->m_Data);
+
+						pLastTiles = pTiles;
+					}
+					else if(pLayerItem->m_Type == LAYERTYPE_LUA && pLastTiles)
+					{
+					    dbg_msg("got", "lua");
+                        CMapItemLayerLua *pLayerLua = (CMapItemLayerLua *)pLayerItem;
+                        dbg_msg("data idx", "%i", pLayerLua->m_Data);
+                        void *pData = DataFile.GetData(pLayerLua->m_Data);
+                        str_copy(pLastTiles->m_LuaLayer.m_aLuaCode, (const char *)pData, sizeof(pLastTiles->m_LuaLayer.m_aLuaCode));
 					}
 					else if(pLayerItem->m_Type == LAYERTYPE_QUADS)
 					{
@@ -606,6 +630,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 					pEnv->m_Synchronized = pItem->m_Synchronized;
 			}
 		}
+
 	}
 
 	return 1;

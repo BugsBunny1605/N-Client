@@ -182,8 +182,11 @@ public:
 
 	virtual void OnLuaPacket(CUnpacker *pUnpacker, int ClientID);
 
+    virtual void SetReloadFlag();
+    bool m_Reload;
 	class ILua *m_pLuaCore;
 	class CLua *m_pLua;
+	bool m_AutoRespawn;
     //static void ConAddLuaFile(IConsole::IResult *pResult, void *pUserData);
 };
 
