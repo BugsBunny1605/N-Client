@@ -15,10 +15,10 @@
 #undef NON_HASED_VERSION
 
 extern "C" { // lua
-    #define LUA_CORE /* make sure that we don't try to import these functions */
-    #include <engine/external/lua/lua.h>
-    #include <engine/external/lua/lualib.h> /* luaL_openlibs */
-    #include <engine/external/lua/lauxlib.h> /* luaL_loadfile */
+#define LUA_CORE /* make sure that we don't try to import these functions */
+#include <engine/external/lua/lua.h>
+#include <engine/external/lua/lualib.h> /* luaL_openlibs */
+#include <engine/external/lua/lauxlib.h> /* luaL_loadfile */
 }
 
 class CLuaBinding
@@ -130,8 +130,8 @@ public:
     int DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrSize, float FontSize, float *Offset, bool Hidden, int Corners, vec4 Color);
     int DoImage(int *pID, int TextureID, int SpriteID, const CUIRect *pRect);
     int DoImageEx(int *pID, int TextureID, const CUIRect *pRect, float ClipX1, float ClipY1, float ClipX2, float ClipY2);
-	float DoScrollbarV(const void *pID, const CUIRect *pRect, float Current, vec4 Color);
-	float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current, vec4 Color);
+    float DoScrollbarV(const void *pID, const CUIRect *pRect, float Current, vec4 Color);
+    float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current, vec4 Color);
 
 };
 
@@ -162,7 +162,10 @@ public:
 
     CLuaUi m_aUiElements[LUAMAXUIELEMENTS];
 
-    char *GetScriptName() {return m_aFilename;};
+    char *GetScriptName()
+    {
+        return m_aFilename;
+    };
 
     array<int> m_lTextures;
     array<int> m_lSounds;
@@ -247,8 +250,11 @@ public:
 
     //Character
     static inline int GetLocalCharacterId(lua_State *L);
+    static inline int GetLocalCharacterPos(lua_State *L);
     static inline int GetCharacterPos(lua_State *L);
+    static inline int SetCharacterPos(lua_State *L);
     static inline int GetCharacterVel(lua_State *L);
+    static inline int SetCharacterVel(lua_State *L);
     static inline int GetCharacterActiveWeapon(lua_State *L);
 
     //TODO:
@@ -269,20 +275,21 @@ public:
     static inline int SetTile(lua_State *L);
     static inline int ClosestPointOnLine(lua_State *L);
 
-	//layers
-	static inline int GetNumGroups(lua_State *L);
-	static inline int GetNumLayers(lua_State *L);
-	static inline int GetGroupNumLayers(lua_State *L);
-	static inline int GetLayerType(lua_State *L);
-	static inline int GetLayerFlags(lua_State *L);
-	static inline int GetLayerTileFlags(lua_State *L);
-	static inline int GetLayerTileIndex(lua_State *L);
-	static inline int SetLayerTileFlags(lua_State *L);
-	static inline int SetLayerTileIndex(lua_State *L);
-	static inline int GetLayerSize(lua_State *L);
-	static inline int RenderTilemapGenerateSkip(lua_State *L);
+    //layers
+    static inline int GetNumGroups(lua_State *L);
+    static inline int GetNumLayers(lua_State *L);
+    static inline int GetGroupNumLayers(lua_State *L);
+    static inline int GetLayerType(lua_State *L);
+    static inline int GetLayerFlags(lua_State *L);
+    static inline int GetLayerTileFlags(lua_State *L);
+    static inline int GetLayerTileIndex(lua_State *L);
+    static inline int SetLayerTileFlags(lua_State *L);
+    static inline int SetLayerTileIndex(lua_State *L);
+    static inline int GetLayerSize(lua_State *L);
+    static inline int RenderTilemapGenerateSkip(lua_State *L);
 
     static inline int CreateParticle(lua_State *L);
+    static inline int CreateDamageIndicator(lua_State *L);
 
     //Flow
     static inline int GetFlow(lua_State *L);
@@ -291,6 +298,11 @@ public:
     //Console Print
     static inline int Print(lua_State *L);
     static inline int Console(lua_State *L);
+    static inline int ConsoleActive(lua_State *L);
+    static inline int ConsoleLocalActive(lua_State *L);
+    static inline int ConsoleRemoteActive(lua_State *L);
+    static inline int LocalExecute(lua_State *L);
+    static inline int LocalExecuteStroked(lua_State *L);
 
     //Remote console
     static inline int RconAuth(lua_State *L);
@@ -307,6 +319,7 @@ public:
 
     //Serverinfo
     static inline int GetGameType(lua_State *L);
+    static inline int GetServerInfo(lua_State *L);
     static inline int IsTeamplay(lua_State *L);
 
     //Get Net Error
@@ -318,6 +331,7 @@ public:
     //Chat
     static inline int ChatSend(lua_State *L);
     static inline int ChatTeamSend(lua_State *L);
+    static inline int AddChatLine(lua_State *L);
 
     //Player
     static inline int GetPlayerName(lua_State *L);
@@ -416,6 +430,8 @@ public:
     static inline int SetLocalCharacterPos(lua_State *L);
 
     static inline int TimeGet(lua_State *L);
+    static inline int GetDate(lua_State *L);
+
     static inline int FPS(lua_State *L);
 
     //Version
@@ -430,6 +446,10 @@ public:
 
     //load skin
     static inline int LoadSkin(lua_State *L);
+
+    //filesystem
+    static inline int CreateDirectory(lua_State *L);
+
 };
 
 class CLua
@@ -464,10 +484,11 @@ public:
 int StrIsInteger(const char *pStr);
 int StrIsFloat(const char *pStr);
 
-static char *ToLower(const char *str)
+/*static char *ToLower(const char *str)
 {
     static char saTmp[8192];
     str_copy(saTmp, str, sizeof(saTmp));
     return str_tolower(saTmp);
-}
+}*/
+
 #endif

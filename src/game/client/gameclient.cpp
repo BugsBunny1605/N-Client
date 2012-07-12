@@ -357,6 +357,15 @@ void CGameClient::OnConnected()
 {
 	m_Layers.Init(Kernel());
 	m_Collision.Init(Layers());
+    for (int i = 0; i < m_Layers.NumLayers(); i++)
+    {
+        CMapItemLayer *pLayer = m_Layers.GetLayer(i);
+        if (pLayer->m_Type == LAYERTYPE_TILES && ((CMapItemLayerTilemap *)pLayer)->m_Flags == TILESLAYERFLAG_GAME && m_Layers.GetLayer(i + 1)->m_Type == LAYERTYPE_LUA)
+        {
+            dbg_msg("Init", "LuaMap");
+            m_LuaMap.m_lLuaMapFiles.add(new CLuaMapFile(static_cast<CTile *>(m_Layers.Map()->GetData(((CMapItemLayerTilemap *)m_Layers.GetLayer(i))->m_Data)), static_cast<const char *>(m_Layers.Map()->GetData(((CMapItemLayerLua *)m_Layers.GetLayer(i + 1))->m_Data)), ((CMapItemLayerTilemap *)m_Layers.GetLayer(i))->m_Width, ((CMapItemLayerTilemap *)m_Layers.GetLayer(i))->m_Height));
+        }
+    }
 
     //TODO:add config
 	//RenderTools()->RenderTilemapGenerateSkip(Layers());
@@ -501,6 +510,14 @@ void CGameClient::ConLua(IConsole::IResult *pResult, void *pUserData)
     }
 }
 
+void CGameClient::ConLuaEval(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameClient *pSelf = (CGameClient *)pUserData;
+    if (!pSelf->m_pLua->m_aLuaFiles[LUA_CONSOLE_ID].m_pLua)
+        pSelf->m_pLua->m_aLuaFiles[LUA_CONSOLE_ID].Init(0);
+	luaL_dostring(pSelf->m_pLua->m_aLuaFiles[LUA_CONSOLE_ID].m_pLua, pResult->GetString(0));
+}
+
 void CGameClient::OnRender()
 {
     if (!m_Music)
@@ -517,18 +534,7 @@ void CGameClient::OnRender()
         m_pLuaBinding = new CLuaBinding(this);
         Console()->Register("lua", "s?ssssssss", CFGFLAG_CLIENT, ConLua, this, "Exec a lua function");
         Console()->Register("+lua", "s?ssssssss", CFGFLAG_CLIENT, ConPlusLua, this, "Exec a lua function");
-
-        /*static ivec3 Map[] = {
-        ivec3(0, 0, 0), ivec3(1, 0, 0), ivec3(2, 0, 0), ivec3(3, 0, 0), ivec3(4, 0, 0),
-        ivec3(0, 1, 0), ivec3(1, 1, 0), ivec3(2, 1, 0), ivec3(3, 1, 0), ivec3(4, 1, 0),
-        ivec3(0, 2, 0), ivec3(1, 2, 0), ivec3(2, 2, 0), ivec3(3, 2, 0), ivec3(4, 2, 0),
-        ivec3(0, 3, 0), ivec3(1, 3, 0), ivec3(2, 3, 0), ivec3(3, 3, 0), ivec3(4, 3, 0),
-        ivec3(0, 4, 0), ivec3(1, 4, 0), ivec3(2, 4, 0), ivec3(3, 4, 0), ivec3(4, 4, 0),
-        };*/
-        //CPathfinder Finder(ivec2(0, 0), ivec2(4, 4), Map, 5, 5);
-        //thread_sleep(10000);
-        //dbg_break();
-        //Finder.Search();
+        Console()->Register("lua_eval", "r", CFGFLAG_CLIENT, ConLuaEval, this, "Evaluate a lua statement");
     }
 
     int64 overalltime = time_get(); //Debug timing
@@ -616,14 +622,18 @@ void CGameClient::OnLuaPacket(CUnpacker *pUnpacker)
         {
             return;
         }
-        aData[Size] = 0;
+	}
+	else if (RawSize < 0)
+	{
+	    Size = -RawSize;
+	    mem_copy(aData, pUnpacker->GetRaw(Size), Size);
 	}
 	else
 	{
-	    str_copy(aData, pUnpacker->GetString(), sizeof(aData));
+	    return;
 	}
 
-    g_GameClient.m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(aData);
+    g_GameClient.m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(aData, Size);
     g_GameClient.m_pLua->m_pEventListener->OnEvent("OnNetData"); //Call lua
 }
 

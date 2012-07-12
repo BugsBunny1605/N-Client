@@ -1,26 +1,28 @@
 /* (c) MAP94. See www.n-lvl.com/ndc/nclient/ for more information. */
-    /*DGI:Doc-Gen-Info*/
-    /*DGI:Type:Client*/
-    /*DGI:Exception:errorfunc*/
-    /*DGI:Event:OnChat*/
-    /*DGI:Event:OnStateChange*/
-    /*DGI:Event:OnControlChange*/
-    /*DGI:Event:OnRenderLevelItem1*/
-    /*DGI:Event:OnRenderLevelItem2*/
-    /*DGI:Event:OnKill*/
-    /*DGI:Event:OnRenderLevel1*/
-    /*DGI:Event:OnRenderLevel2*/
-    /*DGI:Event:OnRenderLevel3*/
-    /*DGI:Event:OnRenderLevel4*/
-    /*DGI:Event:OnRenderLevel5*/
-    /*DGI:Event:OnRenderBackground*/
-    /*DGI:Event:OnServerBrowserGameTypeRender*/
-    /*DGI:Event:OnScoreboardRender*/
-    /*DGI:Event:OnKeyEvent*/
-    /*DGI:Event:OnNetData*/
-    /*DGI:Event:OnConsoleRemote*/
-    /*DGI:Event:OnConsole*/
-    /*DGI:Event:OnMusicChange*/
+/*DGI:Doc-Gen-Info*/
+/*DGI:Type:Client*/
+/*DGI:Exception:errorfunc*/
+/*DGI:Event:OnChat*/
+/*DGI:Event:OnStateChange*/
+/*DGI:Event:OnControlChange*/
+/*DGI:Event:OnRenderLevelItem1*/
+/*DGI:Event:OnRenderLevelItem2*/
+/*DGI:Event:OnKill*/
+/*DGI:Event:OnRenderLevel1*/
+/*DGI:Event:OnRenderLevel2*/
+/*DGI:Event:OnRenderLevel3*/
+/*DGI:Event:OnRenderLevel4*/
+/*DGI:Event:OnRenderLevel5*/
+/*DGI:Event:OnRenderBackground*/
+/*DGI:Event:OnServerBrowserGameTypeRender*/
+/*DGI:Event:OnScoreboardRender*/
+/*DGI:Event:OnKeyEvent*/
+/*DGI:Event:OnNetData*/
+/*DGI:Event:OnConsoleRemote*/
+/*DGI:Event:OnConsole*/
+/*DGI:Event:OnMusicChange*/
+#include <time.h>
+
 #include "lua.h"
 #include "components/flow.h"
 #include "components/particles.h"
@@ -42,6 +44,11 @@
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
 #include <game/client/components/stats.h>
+#include <game/client/components/damageind.h>
+#include <game/client/components/console.h>
+
+#include <game/luaglobal.h>
+
 
 CLuaFile::CLuaFile()
 {
@@ -52,11 +59,11 @@ CLuaFile::CLuaFile()
 CLuaFile::~CLuaFile()
 {
     End();
-    #ifndef CONF_PLATFORM_MACOSX
+#ifndef CONF_PLATFORM_MACOSX
     if (m_pLua) //there are some problems with this on mac osx
         lua_close(m_pLua);
     m_pLua = 0;
-    #endif
+#endif
 }
 
 void CLuaFile::UiTick()
@@ -92,9 +99,9 @@ void CLuaFile::End()
     if (m_pLua == 0)
         return;
 
-    //try to call the end function
+    //try to call the atexit function
     //Maybe the lua file need to save data eg. a ConfigFile
-    FunctionExec("end");
+    FunctionExec("atexit");
 
     //free everything
 
@@ -187,14 +194,18 @@ void CLuaFile::Init(const char *pFile)
 
     //lua_register(m_pLua, ToLower("CreateParticleEmitter", CreateParticleEmitter); //particleemitter gibt es noch nicht
     lua_register(m_pLua, ToLower("CreateParticle"), this->CreateParticle);
+    lua_register(m_pLua, ToLower("CreateDamageIndicator"), this->CreateDamageIndicator);
 
     lua_register(m_pLua, ToLower("GetFlow"), this->GetFlow);
     lua_register(m_pLua, ToLower("SetFlow"), this->SetFlow);
 
     lua_register(m_pLua, ToLower("GetLocalCharacterId"), this->GetLocalCharacterId);
+    lua_register(m_pLua, ToLower("GetLocalCharacterPos"), this->GetLocalCharacterPos);
     lua_register(m_pLua, ToLower("SetLocalCharacterPos"), this->SetLocalCharacterPos);
     lua_register(m_pLua, ToLower("GetCharacterPos"), this->GetCharacterPos);
     lua_register(m_pLua, ToLower("GetCharacterVel"), this->GetCharacterVel);
+    lua_register(m_pLua, ToLower("SetCharacterPos"), this->SetCharacterPos);
+    lua_register(m_pLua, ToLower("SetCharacterVel"), this->SetCharacterVel);
     lua_register(m_pLua, ToLower("GetCharacterActiveWeapon"), this->GetCharacterActiveWeapon);
     lua_register(m_pLua, ToLower("CharacterHasFlag"), this->CharacterHasFlag);
 
@@ -219,6 +230,12 @@ void CLuaFile::Init(const char *pFile)
     //Console Print
     lua_register(m_pLua, ToLower("Print"), this->Print);
     lua_register(m_pLua, ToLower("Console"), this->Console);
+    lua_register(m_pLua, ToLower("LocalExecute"), this->LocalExecute);
+    lua_register(m_pLua, ToLower("LocalExecuteStroked"), this->LocalExecuteStroked);
+    lua_register(m_pLua, ToLower("ConsoleActive"), this->ConsoleActive);
+    lua_register(m_pLua, ToLower("ConsoleLocalActive"), this->ConsoleLocalActive);
+    lua_register(m_pLua, ToLower("ConsoleRemoteActive"), this->ConsoleRemoteActive);
+
 
     //Remote console
     lua_register(m_pLua, ToLower("RconAuth"), this->RconAuth);
@@ -234,6 +251,7 @@ void CLuaFile::Init(const char *pFile)
 
     //Serverinfo
     lua_register(m_pLua, ToLower("GetGameType"), this->GetGameType);
+    lua_register(m_pLua, ToLower("GetServerInfo"), this->GetServerInfo);
     lua_register(m_pLua, ToLower("IsTeamplay"), this->IsTeamplay);
 
     //Get Net Error
@@ -252,22 +270,24 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, ToLower("SetTile"), this->SetTile);
     lua_register(m_pLua, ToLower("ClosestPointOnLine"), this->ClosestPointOnLine);
 
-	//layer
-	lua_register(m_pLua, ToLower("GetNumGroups"), this->GetNumGroups);
-	lua_register(m_pLua, ToLower("GetNumLayers"), this->GetNumLayers);
-	lua_register(m_pLua, ToLower("GetGroupNumLayers"), this->GetGroupNumLayers);
-	lua_register(m_pLua, ToLower("GetLayerType"), this->GetLayerType);
-	lua_register(m_pLua, ToLower("GetLayerFlags"), this->GetLayerFlags);
-	lua_register(m_pLua, ToLower("GetLayerTileFlags"), this->GetLayerTileFlags);
-	lua_register(m_pLua, ToLower("GetLayerTileIndex"), this->GetLayerTileIndex);
-	lua_register(m_pLua, ToLower("SetLayerTileFlags"), this->SetLayerTileFlags);
-	lua_register(m_pLua, ToLower("SetLayerTileIndex"), this->SetLayerTileIndex);
-	lua_register(m_pLua, ToLower("GetLayerSize"), this->GetLayerSize);
-	lua_register(m_pLua, ToLower("RenderTilemapGenerateSkip"), this->RenderTilemapGenerateSkip);
+    //layer
+    lua_register(m_pLua, ToLower("GetNumGroups"), this->GetNumGroups);
+    lua_register(m_pLua, ToLower("GetNumLayers"), this->GetNumLayers);
+    lua_register(m_pLua, ToLower("GetGroupNumLayers"), this->GetGroupNumLayers);
+    lua_register(m_pLua, ToLower("GetLayerType"), this->GetLayerType);
+    lua_register(m_pLua, ToLower("GetLayerFlags"), this->GetLayerFlags);
+    lua_register(m_pLua, ToLower("GetLayerTileFlags"), this->GetLayerTileFlags);
+    lua_register(m_pLua, ToLower("GetLayerTileIndex"), this->GetLayerTileIndex);
+    lua_register(m_pLua, ToLower("SetLayerTileFlags"), this->SetLayerTileFlags);
+    lua_register(m_pLua, ToLower("SetLayerTileIndex"), this->SetLayerTileIndex);
+    lua_register(m_pLua, ToLower("GetLayerSize"), this->GetLayerSize);
+    lua_register(m_pLua, ToLower("RenderTilemapGenerateSkip"), this->RenderTilemapGenerateSkip);
 
     //Chat
     lua_register(m_pLua, ToLower("ChatSend"), this->ChatSend);
     lua_register(m_pLua, ToLower("ChatTeamSend"), this->ChatTeamSend);
+    lua_register(m_pLua, ToLower("ChatAddLine"), this->AddChatLine);
+    lua_register(m_pLua, ToLower("AddChatLine"), this->AddChatLine);
 
     //Ui
     lua_register(m_pLua, ToLower("UiDoButton"), this->UiDoButton);
@@ -326,12 +346,13 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, ToLower("StatGetInfo"), this->StatGetInfo);
     lua_register(m_pLua, ToLower("StatGetRow"), this->StatGetRow);
 
-	//editor
-	//lua_register(m_pLua, "SetMapLuaData", this->SetMapLuaData);
-	//lua_register(m_pLua, "GetMapLuaData", this->GetMapLuaData);
+    //editor
+    //lua_register(m_pLua, "SetMapLuaData", this->SetMapLuaData);
+    //lua_register(m_pLua, "GetMapLuaData", this->GetMapLuaData);
 
 
     lua_register(m_pLua, ToLower("TimeGet"), this->TimeGet);
+    lua_register(m_pLua, ToLower("GetDate"), this->GetDate);
     lua_register(m_pLua, ToLower("FPS"), this->FPS);
 
     //version
@@ -348,13 +369,16 @@ void CLuaFile::Init(const char *pFile)
     lua_register(m_pLua, ToLower("LoadSkin"), this->LoadSkin);
 
 
+    lua_register(m_pLua, ToLower("CreateDirectory"), this->CreateDirectory);
+
+
 
     lua_pushlightuserdata(m_pLua, this);
     lua_setglobal(m_pLua, "pLUA");
 
     lua_register(m_pLua, ToLower("errorfunc"), this->ErrorFunc);
-	//lua_getglobal(m_pLua, "errorfunc"); //could this line stay commented out
-	//if this line is used the stack contains one function which would leeds to problems with return values
+    //lua_getglobal(m_pLua, "errorfunc"); //could this line stay commented out
+    //if this line is used the stack contains one function which would leeds to problems with return values
 
     if (pFile)
     {
@@ -403,9 +427,9 @@ int CLuaFile::ErrorFunc(lua_State *L)
 
     lua_pop(L,1);
 
-	int depth = 0;
-	int frameskip = 1;
-	lua_Debug frame;
+    int depth = 0;
+    int frameskip = 1;
+    lua_Debug frame;
 
     if (lua_tostring(L, -1) == 0)
         return 0;
@@ -547,12 +571,17 @@ int CLuaFile::FunctionExec(const char *pFunctionName)
 int CLuaFile::Include(lua_State *L)
 {
     lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
     lua_Debug Frame;
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
     //check if file exists
-    IOHANDLE CheckFile = io_open(lua_tostring(L, 1), IOFLAG_READ);
+    if (!lua_isstring(L, 1))
+        return 0;
+
+    char aBuffer[1024] = {0};
+    IOHANDLE CheckFile = pSelf->m_pClient->Storage()->OpenFile(lua_tostring(L, 1), IOFLAG_READ, IStorage::TYPE_ALL, aBuffer, sizeof(aBuffer));
     if (CheckFile)
     {
         io_close(CheckFile);
@@ -562,12 +591,9 @@ int CLuaFile::Include(lua_State *L)
         return 0;
     }
 
-    if (!lua_isstring(L, 1))
-        return 0;
-    if (luaL_loadfile(L, lua_tostring(L, 1)) == 0)
+    if (luaL_loadfile(L, aBuffer) == 0)
     {
-        lua_pcall(L, 0, LUA_MULTRET, 0); //delete this line?
-        //does this line mean a full recall?
+        lua_pcall(L, 0, LUA_MULTRET, 0);
     }
     else
     {
@@ -593,11 +619,7 @@ int CLuaFile::SetScriptUseSettingPage(lua_State *L)
 
 int CLuaFile::SetScriptTitle(lua_State *L)
 {
-    lua_getglobal(L, "pLUA");
-    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
-    lua_Debug Frame;
-    lua_getstack(L, 1, &Frame);
-    lua_getinfo(L, "nlSf", &Frame);
+    LUA_FUNCTION_HEADER
 
     if (!lua_isstring(L, 1))
         return 0;
@@ -1412,6 +1434,46 @@ int CLuaFile::GetCharacterPos(lua_State *L)
     return 2;
 }
 
+int CLuaFile::SetCharacterPos(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isnumber(L, 1))
+        return 0;
+    if (!lua_isnumber(L, 2))
+        return 0;
+    if (!lua_isnumber(L, 3))
+        return 0;
+
+    pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_X = lua_tonumber(L, 2);
+    pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_Y = lua_tonumber(L, 3);
+    return 0;
+}
+
+int CLuaFile::SetCharacterVel(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+
+    if (!lua_isnumber(L, 1))
+        return 0;
+    if (!lua_isnumber(L, 2))
+        return 0;
+    if (!lua_isnumber(L, 3))
+        return 0;
+
+    pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_VelX = lua_tonumber(L, 2);
+    pSelf->m_pClient->m_Snap.m_aCharacters[lua_tointeger(L, 1)].m_Cur.m_VelY = lua_tonumber(L, 3);
+    return 0;
+}
+
 int CLuaFile::GetCharacterActiveWeapon(lua_State *L)
 {
     lua_getglobal(L, "pLUA");
@@ -1557,6 +1619,15 @@ int CLuaFile::GetTile(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2))
+        return 0;
+    if(pSelf->m_pClient->Client()->State() != IClient::STATE_ONLINE || pSelf->m_pClient->Client()->State() == IClient::STATE_CONNECTING)
+    {
+        return 0;
+    }
+    if (!pSelf->m_pClient->Collision())
+        return 0;
+
     lua_pushnumber(L, pSelf->m_pClient->Collision()->GetTileRaw(lua_tonumber(L, 1), lua_tonumber(L, 2)));
     return 1;
 }
@@ -1567,8 +1638,15 @@ int CLuaFile::SetTile(lua_State *L)
     lua_Debug Frame;
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3))
-		return 0;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3))
+        return 0;
+
+    if(pSelf->m_pClient->Client()->State() != IClient::STATE_ONLINE || pSelf->m_pClient->Client()->State() == IClient::STATE_CONNECTING)
+    {
+        return 0;
+    }
+    if (!pSelf->m_pClient->Collision())
+        return 0;
 
     pSelf->m_pClient->Collision()->SetTile(lua_tointeger(L, 1), lua_tointeger(L, 2), lua_tointeger(L, 3));
     return 1;
@@ -1581,6 +1659,13 @@ int CLuaFile::GetMapWidth(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
+    if(pSelf->m_pClient->Client()->State() != IClient::STATE_ONLINE || pSelf->m_pClient->Client()->State() == IClient::STATE_CONNECTING)
+    {
+        return 0;
+    }
+    if (!pSelf->m_pClient->Collision())
+        return 0;
+
     lua_pushnumber(L, pSelf->m_pClient->Collision()->GetWidth());
     return 1;
 }
@@ -1592,6 +1677,13 @@ int CLuaFile::GetMapHeight(lua_State *L)
     lua_Debug Frame;
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
+
+    if(pSelf->m_pClient->Client()->State() != IClient::STATE_ONLINE || pSelf->m_pClient->Client()->State() == IClient::STATE_CONNECTING)
+    {
+        return 0;
+    }
+    if (!pSelf->m_pClient->Collision())
+        return 0;
 
     lua_pushnumber(L, pSelf->m_pClient->Collision()->GetHeight());
     return 1;
@@ -1689,7 +1781,7 @@ int CLuaFile::CreateParticle(lua_State *L)
 
     //lua_pushnumber(L, EmitterId);
 
-	if (pSelf->m_pClient->Client()->GameTick())
+    if (pSelf->m_pClient->Client()->GameTick())
         pSelf->m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
     return 0;
 }
@@ -1756,7 +1848,7 @@ int CLuaFile::GetGameType(lua_State *L)
     lua_getinfo(L, "nlSf", &Frame);
 
     CServerInfo CurrentServerInfo;
-	pSelf->m_pClient->Client()->GetServerInfo(&CurrentServerInfo);
+    pSelf->m_pClient->Client()->GetServerInfo(&CurrentServerInfo);
     lua_pushstring(L, CurrentServerInfo.m_aGameType);
     return 1;
 }
@@ -2809,32 +2901,32 @@ int CLuaFile::UiDirectRectArray(lua_State *L)
                     float Sa3 = sinf(a3);
 
                     if(Corners&1) // TL
-                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
-                        Rect.x+Rounding, Rect.y+Rounding,
-                        Rect.x+(1-Ca1)*Rounding, Rect.y+(1-Sa1)*Rounding,
-                        Rect.x+(1-Ca3)*Rounding, Rect.y+(1-Sa3)*Rounding,
-                        Rect.x+(1-Ca2)*Rounding, Rect.y+(1-Sa2)*Rounding);
+                        ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                                                 Rect.x+Rounding, Rect.y+Rounding,
+                                                 Rect.x+(1-Ca1)*Rounding, Rect.y+(1-Sa1)*Rounding,
+                                                 Rect.x+(1-Ca3)*Rounding, Rect.y+(1-Sa3)*Rounding,
+                                                 Rect.x+(1-Ca2)*Rounding, Rect.y+(1-Sa2)*Rounding);
 
                     if(Corners&2) // TR
-                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
-                        Rect.x+Rect.w-Rounding, Rect.y+Rounding,
-                        Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+(1-Sa1)*Rounding,
-                        Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+(1-Sa3)*Rounding,
-                        Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+(1-Sa2)*Rounding);
+                        ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                                                 Rect.x+Rect.w-Rounding, Rect.y+Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+(1-Sa1)*Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+(1-Sa3)*Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+(1-Sa2)*Rounding);
 
                     if(Corners&4) // BL
-                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
-                        Rect.x+Rounding, Rect.y+Rect.h-Rounding,
-                        Rect.x+(1-Ca1)*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
-                        Rect.x+(1-Ca3)*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
-                        Rect.x+(1-Ca2)*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
+                        ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                                                 Rect.x+Rounding, Rect.y+Rect.h-Rounding,
+                                                 Rect.x+(1-Ca1)*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
+                                                 Rect.x+(1-Ca3)*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
+                                                 Rect.x+(1-Ca2)*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
 
                     if(Corners&8) // BR
-                    ArrayF[NumItems++] = IGraphics::CFreeformItem(
-                        Rect.x+Rect.w-Rounding, Rect.y+Rect.h-Rounding,
-                        Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
-                        Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
-                        Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
+                        ArrayF[NumItems++] = IGraphics::CFreeformItem(
+                                                 Rect.x+Rect.w-Rounding, Rect.y+Rect.h-Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca1*Rounding, Rect.y+Rect.h-Rounding+Sa1*Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca3*Rounding, Rect.y+Rect.h-Rounding+Sa3*Rounding,
+                                                 Rect.x+Rect.w-Rounding+Ca2*Rounding, Rect.y+Rect.h-Rounding+Sa2*Rounding);
                 }
                 pSelf->m_pClient->Graphics()->QuadsDrawFreeform(ArrayF, NumItems);
             }
@@ -3137,7 +3229,7 @@ int CLuaFile::PlayWv(lua_State *L)
     if(!lua_isnumber(L, 1))
         return 0;
 
-	int Channel = CSounds::CHN_WORLD;
+    int Channel = CSounds::CHN_WORLD;
     if (lua_isnumber(L, 2) && lua_tointeger(L, 2) == 1)
         Channel = CSounds::CHN_GLOBAL;
 
@@ -3192,20 +3284,21 @@ int CLuaFile::SendPacket(lua_State *L)
     if(lua_isnil(L, 1))
         return 0;
 
-	char aData[2000];
-	int Size = sizeof(aData);
-	CMsgPacker P(NETMSG_LUA_DATA);
-	if (compress2((Bytef *)aData, (uLongf *)&Size, (Bytef *)lua_tostring(L, 1), str_length(lua_tostring(L, 1)), Z_BEST_COMPRESSION) == Z_OK && Size < str_length(lua_tostring(L, 1)))
-	{
+    size_t InSize = 0;
+    const char *pData = lua_tolstring(L, 1, &InSize);
+    char aData[8192];
+    int Size = sizeof(aData);
+    CMsgPacker P(NETMSG_LUA_DATA);
+    if (compress2((Bytef *)aData, (uLongf *)&Size, (Bytef *)pData, InSize, Z_BEST_COMPRESSION) == Z_OK && Size < InSize)
+    {
         P.AddInt(Size);
         P.AddRaw(aData, Size);
-	}
-	else
-	{
-	    str_copy(aData, lua_tostring(L, 1), sizeof(aData));
-	    P.AddInt(-1); //no compression
-	    P.AddString(aData, sizeof(aData));
-	}
+    }
+    else
+    {
+        P.AddInt(-InSize); //no compression
+        P.AddRaw(pData, InSize);
+    }
     pSelf->m_pClient->Client()->SendMsgEx(&P, MSGFLAG_VITAL|MSGFLAG_FLUSH, true);
 
     return 0;
@@ -3219,10 +3312,10 @@ int CLuaFile::GetNumGroups(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!pSelf->m_pClient->Layers())
-	{
-		return 0;
-	}
+    if(!pSelf->m_pClient->Layers())
+    {
+        return 0;
+    }
 
     lua_pushnumber(L, pSelf->m_pClient->Layers()->NumGroups());
     return 1;
@@ -3235,10 +3328,10 @@ int CLuaFile::GetNumLayers(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!pSelf->m_pClient->Layers())
-	{
-		return 0;
-	}
+    if(!pSelf->m_pClient->Layers())
+    {
+        return 0;
+    }
 
     lua_pushnumber(L, pSelf->m_pClient->Layers()->NumLayers());
     return 1;
@@ -3251,15 +3344,15 @@ int CLuaFile::GetGroupNumLayers(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	if(!pSelf->m_pClient->Layers()->GetGroup(lua_tointeger(L, 1)))
-	{
-		return 0;
-	}
-	lua_pushnumber(L, pSelf->m_pClient->Layers()->GetGroup(lua_tointeger(L, 1))->m_NumLayers);
+    if(!lua_isnumber(L, 1) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    if(!pSelf->m_pClient->Layers()->GetGroup(lua_tointeger(L, 1)))
+    {
+        return 0;
+    }
+    lua_pushnumber(L, pSelf->m_pClient->Layers()->GetGroup(lua_tointeger(L, 1))->m_NumLayers);
     return 1;
 }
 
@@ -3271,12 +3364,12 @@ int CLuaFile::GetLayerType(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3298,12 +3391,12 @@ int CLuaFile::GetLayerFlags(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3315,7 +3408,7 @@ int CLuaFile::GetLayerFlags(lua_State *L)
         return 0;
     }
 
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
     lua_pushnumber(L, pTmap->m_Flags);
     return 1;
 }
@@ -3327,12 +3420,12 @@ int CLuaFile::GetLayerSize(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3343,12 +3436,12 @@ int CLuaFile::GetLayerSize(lua_State *L)
     {
         return 0;
     }
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
 
-	if(!pTmap)
-	{
-		return 0;
-	}
+    if(!pTmap)
+    {
+        return 0;
+    }
 
     lua_pushnumber(L, pTmap->m_Width);
     lua_pushnumber(L, pTmap->m_Height);
@@ -3363,12 +3456,12 @@ int CLuaFile::GetLayerTileFlags(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3380,18 +3473,18 @@ int CLuaFile::GetLayerTileFlags(lua_State *L)
         return 0;
     }
 
-	int x = lua_tointeger(L, 3);
-	int y = lua_tointeger(L, 4);
-	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
-	if(!pLayer)
-	{
-		return 0;
-	}
-	if(pLayer->m_Type != LAYERTYPE_TILES)
+    int x = lua_tointeger(L, 3);
+    int y = lua_tointeger(L, 4);
+    CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    if(!pLayer)
     {
-		return 0;
-	}
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
+        return 0;
+    }
+    if(pLayer->m_Type != LAYERTYPE_TILES)
+    {
+        return 0;
+    }
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
     CTile *pTiles = (CTile *)pSelf->m_pClient->Layers()->Map()->GetData(pTmap->m_Data);
 
 
@@ -3407,12 +3500,12 @@ int CLuaFile::SetLayerTileFlags(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3424,20 +3517,20 @@ int CLuaFile::SetLayerTileFlags(lua_State *L)
         return 0;
     }
 
-	int x = lua_tointeger(L, 3);
-	int y = lua_tointeger(L, 4);
-	int NewFlags = lua_tointeger(L, 5);
-	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
-	if(!pLayer)
-		return 0;
-	if(pLayer->m_Type != LAYERTYPE_TILES)
-		return 0;
+    int x = lua_tointeger(L, 3);
+    int y = lua_tointeger(L, 4);
+    int NewFlags = lua_tointeger(L, 5);
+    CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    if(!pLayer)
+        return 0;
+    if(pLayer->m_Type != LAYERTYPE_TILES)
+        return 0;
 
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
     CTile *pTiles = (CTile *)pSelf->m_pClient->Layers()->Map()->GetData(pTmap->m_Data);
 
 
-	pTiles[y*pTmap->m_Width+x].m_Flags = NewFlags;
+    pTiles[y*pTmap->m_Width+x].m_Flags = NewFlags;
     return 0;
 }
 int CLuaFile::GetLayerTileIndex(lua_State *L)
@@ -3448,12 +3541,12 @@ int CLuaFile::GetLayerTileIndex(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3465,18 +3558,18 @@ int CLuaFile::GetLayerTileIndex(lua_State *L)
         return 0;
     }
 
-	int x = lua_tointeger(L, 3);
-	int y = lua_tointeger(L, 4);
-	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
-	if(!pLayer)
-	{
-		return 0;
-	}
-	if(pLayer->m_Type != LAYERTYPE_TILES)
+    int x = lua_tointeger(L, 3);
+    int y = lua_tointeger(L, 4);
+    CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer+Index);
+    if(!pLayer)
     {
-		return 0;
-	}
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
+        return 0;
+    }
+    if(pLayer->m_Type != LAYERTYPE_TILES)
+    {
+        return 0;
+    }
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
     CTile *pTiles = (CTile *)pSelf->m_pClient->Layers()->Map()->GetData(pTmap->m_Data);
 
 
@@ -3492,12 +3585,12 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
-	{
-		return 0;
-	}
-	int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
-	int Index = -1;
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !pSelf->m_pClient->Layers() || pSelf->m_pClient->Layers()->NumGroups() < 1)
+    {
+        return 0;
+    }
+    int Group = clamp((int)lua_tointeger(L, 1), 0, pSelf->m_pClient->Layers()->NumGroups()-1);
+    int Index = -1;
     if(pSelf->m_pClient->Layers()->GetGroup(Group))
         Index = clamp((int)lua_tointeger(L, 2), 0, pSelf->m_pClient->Layers()->GetGroup(Group)->m_NumLayers-1);
     else
@@ -3509,24 +3602,24 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
         return 0;
     }
 
-	int x = lua_tointeger(L, 3);
-	int y = lua_tointeger(L, 4);
+    int x = lua_tointeger(L, 3);
+    int y = lua_tointeger(L, 4);
     int NewIndex = lua_tointeger(L, 5);
-	CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer + Index);
-	if(!pLayer)
-		return 0;
-	if(pLayer->m_Type != LAYERTYPE_TILES)
-		return 0;
+    CMapItemLayer *pLayer = pSelf->m_pClient->Layers()->GetLayer(pSelf->m_pClient->Layers()->GetGroup(Group)->m_StartLayer + Index);
+    if(!pLayer)
+        return 0;
+    if(pLayer->m_Type != LAYERTYPE_TILES)
+        return 0;
 
-	CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
+    CMapItemLayerTilemap *pTmap = (CMapItemLayerTilemap *)pLayer;
     CTile *pTiles = (CTile *)pSelf->m_pClient->Layers()->Map()->GetData(pTmap->m_Data);
 
     x = clamp(x, 0, pTmap->m_Width - 1);
     y = clamp(y, 0, pTmap->m_Height - 1);
 
-	pTiles[y*pTmap->m_Width+x].m_Index = NewIndex;
-	for (int sx = 1; x-sx >= 0 && sx < 255; sx++)
-	{
+    pTiles[y*pTmap->m_Width+x].m_Index = NewIndex;
+    for (int sx = 1; x-sx >= 0 && sx < 255; sx++)
+    {
         if (pTiles[y*pTmap->m_Width+x - sx].m_Skip)
         {
             pTiles[y*pTmap->m_Width+x - sx].m_Skip = sx - 1;
@@ -3534,7 +3627,7 @@ int CLuaFile::SetLayerTileIndex(lua_State *L)
         }
         if (pTiles[y*pTmap->m_Width+x - sx].m_Index)
             break;
-	}
+    }
     return 0;
 }
 
@@ -3546,8 +3639,8 @@ int CLuaFile::RenderTilemapGenerateSkip(lua_State *L)
     lua_getstack(L, 1, &Frame);
     lua_getinfo(L, "nlSf", &Frame);
 
-	if(pSelf->m_pClient->Layers() && pSelf->m_pClient->RenderTools())
-		thread_create(pSelf->m_pClient->RenderTilemapGenerateSkipThread, pSelf->m_pClient);
+    if(pSelf->m_pClient->Layers() && pSelf->m_pClient->RenderTools())
+        thread_create(pSelf->m_pClient->RenderTilemapGenerateSkipThread, pSelf->m_pClient);
     return 0;
 }
 
@@ -3805,11 +3898,11 @@ int CLuaFile::AddWaveToStream(lua_State *L)
 
 static short Int2Short(int i)
 {
-	if(i > 0x7fff)
-		return 0x7fff;
-	else if(i < -0x7fff)
-		return -0x7fff;
-	return i;
+    if(i > 0x7fff)
+        return 0x7fff;
+    else if(i < -0x7fff)
+        return -0x7fff;
+    return i;
 }
 
 int CLuaFile::FloatToShortChars(lua_State *L)
@@ -3853,4 +3946,165 @@ int CLuaFile::LoadSkin(lua_State *L)
         pSelf->m_pClient->m_pSkins->LoadSkin(&Skin, false);
     }
     return 0;
+}
+
+int CLuaFile::ConsoleActive(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+    lua_pushboolean(L, (pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPEN || pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPENING));
+    return 1;
+}
+
+int CLuaFile::ConsoleLocalActive(lua_State *L)
+{
+    lua_getglobal(L, "pLUA");
+    CLuaFile *pSelf = (CLuaFile *)lua_touserdata(L, -1);
+    lua_Debug Frame;
+    lua_getstack(L, 1, &Frame);
+    lua_getinfo(L, "nlSf", &Frame);
+    lua_pushboolean(L, (pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPEN || pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPENING) && pSelf->m_pClient->m_pGameConsole->GetConsoleType() == CGameConsole::CONSOLETYPE_LOCAL);
+    return 1;
+}
+
+int CLuaFile::ConsoleRemoteActive(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+    lua_pushboolean(L, (pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPEN || pSelf->m_pClient->m_pGameConsole->GetConsoleState() == CGameConsole::CONSOLE_OPENING) && pSelf->m_pClient->m_pGameConsole->GetConsoleType() == CGameConsole::CONSOLETYPE_REMOTE);
+    return 1;
+}
+
+int CLuaFile::GetLocalCharacterPos(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+    // Can be used for direct rendering on screen
+
+    lua_pushnumber(L, pSelf->m_pClient->m_LocalCharacterPos.x);
+    lua_pushnumber(L, pSelf->m_pClient->m_LocalCharacterPos.y);
+
+    return 2;
+}
+
+int CLuaFile::LocalExecute(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+
+    if (lua_isstring(L, 1))
+        pSelf->m_pClient->Console()->ExecuteLine(lua_tostring(L, 1));
+
+    return 0;
+}
+
+int CLuaFile::LocalExecuteStroked(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+
+    if (lua_isnumber(L, 1) && lua_isstring(L, 2))
+        pSelf->m_pClient->Console()->ExecuteLineStroked(lua_tonumber(L, 1), lua_tostring(L, 2));
+
+    return 0;
+}
+
+int CLuaFile::GetServerInfo(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+
+    CServerInfo CurrentServerInfo;
+    pSelf->m_pClient->Client()->GetServerInfo(&CurrentServerInfo);
+
+    lua_pushstring(L, CurrentServerInfo.m_aName);
+    lua_pushstring(L, g_Config.m_UiServerAddress);
+    lua_pushstring(L, CurrentServerInfo.m_aGameType);
+    lua_pushstring(L, CurrentServerInfo.m_aMap);
+    lua_pushstring(L, CurrentServerInfo.m_aVersion);
+
+    return 5;
+}
+
+int CLuaFile::CreateDamageIndicator(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+    //--
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4))
+        return 0;
+    vec2 Pos = vec2(lua_tonumber(L, 1), lua_tonumber(L, 2));
+    vec2 Dir = vec2(lua_tonumber(L, 3), lua_tonumber(L, 4));
+
+    pSelf->m_pClient->m_pDamageind->Create(Pos, Dir);
+    return 0;
+}
+
+int CLuaFile::AddChatLine(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+    // For editing chats (Spam block - Filter)
+    if(!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isstring(L, 3))
+        return 0;
+
+    pSelf->m_pClient->m_pChat->AddLine(lua_tonumber(L, 1), lua_tonumber(L, 2), lua_tostring(L, 3));
+    return 0;
+}
+
+int CLuaFile::CreateDirectory(lua_State *L)
+{
+    LUA_FUNCTION_HEADER
+    if(!lua_isstring(L, 1))
+        return 0;
+
+    lua_pushboolean(L, fs_makedir(lua_tostring(L, 1)));
+    return 1;
+}
+
+int CLuaFile::GetDate (lua_State *L) //from loslib.c
+{
+    const char *s = luaL_optstring(L, 1, "%c");
+    time_t t = luaL_opt(L, (time_t)luaL_checknumber, 2, time(NULL));
+    struct tm tmr, *stm;
+    if (*s == '!')    /* UTC? */
+    {
+        stm = l_gmtime(&t, &tmr);
+        s++;  /* skip `!' */
+    }
+    else
+        stm = l_localtime(&t, &tmr);
+    if (stm == NULL)  /* invalid date? */
+        lua_pushnil(L);
+    else if (str_comp(s, "*t") == 0)
+    {
+        lua_createtable(L, 0, 9);  /* 9 = number of fields */
+        setfield(L, "sec", stm->tm_sec);
+        setfield(L, "min", stm->tm_min);
+        setfield(L, "hour", stm->tm_hour);
+        setfield(L, "day", stm->tm_mday);
+        setfield(L, "month", stm->tm_mon+1);
+        setfield(L, "year", stm->tm_year+1900);
+        setfield(L, "wday", stm->tm_wday+1);
+        setfield(L, "yday", stm->tm_yday+1);
+        setboolfield(L, "isdst", stm->tm_isdst);
+    }
+    else
+    {
+        char cc[4];
+        luaL_Buffer b;
+        cc[0] = '%';
+        luaL_buffinit(L, &b);
+        while (*s)
+        {
+            if (*s != '%')  /* no conversion specifier? */
+                luaL_addchar(&b, *s++);
+            else
+            {
+                size_t reslen;
+                char buff[200];  /* should be big enough for any conversion result */
+                s = checkoption(L, s + 1, cc);
+                reslen = strftime(buff, sizeof(buff), cc, stm);
+                luaL_addlstring(&b, buff, reslen);
+            }
+        }
+        luaL_pushresult(&b);
+    }
+    return 1;
 }

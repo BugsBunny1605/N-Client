@@ -189,6 +189,7 @@ function build(settings)
 			settings.link.frameworks:Add("AppKit")
 		else
 			settings.link.libs:Add("pthread")
+            settings.link.libs:Add("dl")
 		end
 
 		if platform == "solaris" then
@@ -218,8 +219,16 @@ function build(settings)
 	-- build the small libraries
 	settings.cc.includes:Add("src/engine/external/lua")
 	lua = Compile(settings, Collect("src/engine/external/lua/*.c"))
-	settings.cc.includes:Add("src/engine/external/sqlite")
-	sqlite = Compile(settings, Collect("src/engine/external/sqlite/*.c"))
+	if platform ~= "macosx" then
+        settings.cc.includes:Add("src/engine/external/sqlite")
+        sqlite = Compile(settings, Collect("src/engine/external/sqlite/*.c"))
+    end
+	settings.cc.includes:Add("src/engine/external/libogg")
+	ogg = Compile(settings, Collect("src/engine/external/libogg/*.c"))
+	settings.cc.includes:Add("src/engine/external/libvorbis")
+	vorbis = Compile(settings, Collect("src/engine/external/libvorbis/*.c"))
+	settings.cc.includes:Add("src/engine/external/libtheora")
+	theora = Compile(settings, Collect("src/engine/external/libtheora/*.c"))
 	wavpack = Compile(settings, Collect("src/engine/external/wavpack/*.c"))
 	pnglite = Compile(settings, Collect("src/engine/external/pnglite/*.c"))
 
@@ -278,12 +287,12 @@ function build(settings)
 	tools = {}
 	for i,v in ipairs(tools_src) do
 		toolname = PathFilename(PathBase(v))
-		tools[i] = Link(settings, toolname, Compile(settings, v), engine, zlib, pnglite)
+		tools[i] = Link(settings, toolname, Compile(settings, v), engine, zlib, pnglite, lua, sqlite)
 	end
 
 	-- build client, server, version server and master server
 	client_exe = Link(client_settings, "n-client", game_shared, game_client,
-		engine, client, game_editor, zlib, pnglite, wavpack, lua, sqlite,
+		engine, client, game_editor, zlib, pnglite, wavpack, lua, sqlite, theora, ogg, vorbis,
 		client_link_other, client_osxlaunch)
 
 	server_exe = Link(server_settings, "teeworlds_srv", engine, server,
@@ -340,7 +349,7 @@ end
 
 release_settings_optimized = NewSettings()
 release_settings_optimized.config_name = "release_optimized"
-release_settings_optimized.config_ext = "_test"
+release_settings_optimized.config_ext = "_optimized"
 release_settings_optimized.debug = 0
 release_settings_optimized.optimize = 1
 release_settings_optimized.cc.defines:Add("CONF_RELEASE")
@@ -355,26 +364,6 @@ elseif family == "windows" then
     release_settings_optimized.cc.flags:Add("/GL")
     --release_settings_optimized.cc.flags:Add("/arch:SSE2")
     release_settings_optimized.link.flags:Add("/LTCG")
-end
-
-buildbot_release32 = NewSettings()
-buildbot_release64 = NewSettings()
-if family == "unix" then
-    buildbot_release32 = NewSettings()
-    buildbot_release32.config_name = "release_x32"
-    buildbot_release32.config_ext = "_x32"
-    buildbot_release32.debug = 0
-    buildbot_release32.optimize = 1
-    buildbot_release32.cc.defines:Add("CONF_RELEASE")
-
-    buildbot_release64 = buildbot_release32:Copy()
-    buildbot_release64.config_name = "release_x64"
-    buildbot_release64.config_ext = "_x64"
-
-    buildbot_release32.cc.flags:Add("-m32")
-    buildbot_release64.cc.flags:Add("-m64")
-    buildbot_release32.link.flags:Add("-m elf_i386")
-    buildbot_release32.link.flags:Add("-m32")
 end
 
 if platform == "macosx" then
@@ -470,10 +459,5 @@ else
 	else
         PseudoTarget("all", "debug", "release", "release_optimized")
 	end
-    if family == "unix" then
-        build(buildbot_release32)
-        build(buildbot_release64)
-        PseudoTarget("buildbot_both", "release_x32", "release_x64")
-    end
 
 end

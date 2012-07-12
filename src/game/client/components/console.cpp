@@ -28,14 +28,6 @@
 
 #include "console.h"
 
-enum
-{
-	CONSOLE_CLOSED,
-	CONSOLE_OPENING,
-	CONSOLE_OPEN,
-	CONSOLE_CLOSING,
-};
-
 CGameConsole::CInstance::CInstance(int Type)
 {
 	m_pHistoryEntry = 0x0;
@@ -86,6 +78,10 @@ void CGameConsole::CInstance::ExecuteLine(const char *pLine)
 	{
 	    if (!m_pGameConsole->m_pClient->m_pLua->m_aLuaFiles[LUA_CONSOLE_ID].m_pLua)
             m_pGameConsole->m_pClient->m_pLua->m_aLuaFiles[LUA_CONSOLE_ID].Init(0);
+        if (str_comp(pLine, "lua_clear") == 0)
+        {
+            while (m_Backlog.PopFirst());
+        }
         if (str_comp(pLine, "lua_exec") == 0)
         {
             CInstance::CBacklogEntry *pEntry = m_Backlog.First();
