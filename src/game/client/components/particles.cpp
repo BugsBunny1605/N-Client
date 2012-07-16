@@ -69,6 +69,8 @@ void CParticles::Add(int Group, CParticle *pPart)
 
 void CParticles::Update(float TimePassed)
 {
+    dbg_msg("Timepassed", "%f", TimePassed);
+
 	static float FrictionFraction = 0;
 	FrictionFraction += TimePassed;
 
@@ -143,9 +145,24 @@ void CParticles::OnRender()
 
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
 	{
-		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
-		if(!pInfo->m_Paused)
-			Update((float)((t-LastTime)/(double)time_freq())*pInfo->m_Speed);
+        if (m_pClient->DemoPlayer()->m_Recording)
+        {
+            t = Client()->DemoTimeGet();
+            float TimePassed = (float)((t-LastTime)/(double)time_freq());
+            Update(TimePassed / 2);
+            //i really don't understand the particle system at the moment but it seems that we have a main update and a post update
+            //this line fixes the particle bug
+            if (LastTime == 0) //set if not set then mix
+                LastTime = t;
+            LastTime = mix(t, LastTime, 0.5);
+            //this looks like a ugly hack but i am tired and don't want to search a better solution
+        }
+        else
+        {
+            const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
+            if(!pInfo->m_Paused)
+                Update((float)((t-LastTime)/(double)time_freq())*pInfo->m_Speed);
+        }
 	}
 	else
 		Update((float)((t-LastTime)/(double)time_freq()));

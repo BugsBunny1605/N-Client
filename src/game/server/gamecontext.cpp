@@ -424,7 +424,7 @@ void CGameContext::OnTick()
 
 	// copy tuning
 	m_pLua->Tick();
-	m_LuaMap.Tick();
+	m_LuaMap.Tick(Server()->Tick());
 
 	if (m_Reload)
 	{
@@ -1539,6 +1539,7 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 
 	m_Layers.Init(Kernel());
 	m_Collision.Init(&m_Layers);
+    m_LuaMap.Clear();
     for (int i = 0; i < m_Layers.NumLayers(); i++)
     {
         CMapItemLayer *pLayer = m_Layers.GetLayer(i);
