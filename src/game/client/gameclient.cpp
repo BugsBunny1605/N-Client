@@ -55,6 +55,7 @@
 #include "components/emitter.h"
 #include "components/stats.h"
 #include "components/luarender.h"
+#include "components/luainput.h"
 
 CGameClient g_GameClient;
 
@@ -97,6 +98,33 @@ static CLuaRender gs_LuaRenderLayerLevel2(2);
 static CLuaRender gs_LuaRenderLayerLevel3(3);
 static CLuaRender gs_LuaRenderLayerLevel4(4);
 static CLuaRender gs_LuaRenderLayerLevel5(5);
+static CLuaRender gs_LuaRenderLayerLevel6(6);
+static CLuaRender gs_LuaRenderLayerLevel7(7);
+static CLuaRender gs_LuaRenderLayerLevel8(8);
+static CLuaRender gs_LuaRenderLayerLevel9(9);
+static CLuaRender gs_LuaRenderLayerLevel10(10);
+static CLuaRender gs_LuaRenderLayerLevel11(11);
+static CLuaRender gs_LuaRenderLayerLevel12(12);
+static CLuaRender gs_LuaRenderLayerLevel13(13);
+static CLuaRender gs_LuaRenderLayerLevel14(14);
+static CLuaRender gs_LuaRenderLayerLevel15(15);
+static CLuaRender gs_LuaRenderLayerLevel16(16);
+static CLuaRender gs_LuaRenderLayerLevel17(17);
+static CLuaRender gs_LuaRenderLayerLevel18(18);
+static CLuaRender gs_LuaRenderLayerLevel19(19);
+static CLuaRender gs_LuaRenderLayerLevel20(20);
+
+static CLuaInput gs_LuaInputLevel1(1);
+static CLuaInput gs_LuaInputLevel2(2);
+static CLuaInput gs_LuaInputLevel3(3);
+static CLuaInput gs_LuaInputLevel4(4);
+static CLuaInput gs_LuaInputLevel5(5);
+static CLuaInput gs_LuaInputLevel6(6);
+static CLuaInput gs_LuaInputLevel7(7);
+static CLuaInput gs_LuaInputLevel8(8);
+static CLuaInput gs_LuaInputLevel9(9);
+static CLuaInput gs_LuaInputLevel10(10);
+static CLuaInput gs_LuaInputLevel11(11);
 
 CGameClient::CStack::CStack() { m_Num = 0; }
 void CGameClient::CStack::Add(class CComponent *pComponent) { m_paComponents[m_Num++] = pComponent; }
@@ -152,7 +180,7 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(m_pCountryFlags);
 	m_All.Add(m_pMapimages);
 	m_All.Add(m_pEffects); // doesn't render anything, just updates effects
-	m_All.Add(m_pParticles);
+	//m_All.Add(m_pParticles); // why was the particle stuff here too
 	m_All.Add(m_pBinds);
 	m_All.Add(m_pControls);
 	m_All.Add(m_pCamera);
@@ -174,32 +202,58 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(&gs_MapLayersForeGround);
 	m_All.Add(&gs_LuaRenderLayerLevel5); // lua
 	m_All.Add(&m_pParticles->m_RenderExplosions);
+	m_All.Add(&gs_LuaRenderLayerLevel6); // lua
 	m_All.Add(&gs_NamePlates);
+	m_All.Add(&gs_LuaRenderLayerLevel7); // lua
 	m_All.Add(&m_pParticles->m_RenderGeneral);
+	m_All.Add(&gs_LuaRenderLayerLevel8); // lua
 	m_All.Add(m_pDamageind);
+	m_All.Add(&gs_LuaRenderLayerLevel9); // lua
 	m_All.Add(&gs_Hud);
+	m_All.Add(&gs_LuaRenderLayerLevel10); // lua
 	m_All.Add(&gs_Spectator);
+	m_All.Add(&gs_LuaRenderLayerLevel11); // lua
 	m_All.Add(&gs_Emoticon);
+	m_All.Add(&gs_LuaRenderLayerLevel12); // lua
 	m_All.Add(&gs_KillMessages);
+	m_All.Add(&gs_LuaRenderLayerLevel13); // lua
 	m_All.Add(m_pChat);
+	m_All.Add(&gs_LuaRenderLayerLevel14); // lua
 	m_All.Add(&gs_Broadcast);
+	m_All.Add(&gs_LuaRenderLayerLevel15); // lua
 	m_All.Add(&gs_DebugHud);
+	m_All.Add(&gs_LuaRenderLayerLevel16); // lua
 	m_All.Add(&gs_Scoreboard);
+	m_All.Add(&gs_LuaRenderLayerLevel17); // lua
 	m_All.Add(m_pMotd);
+	m_All.Add(&gs_LuaRenderLayerLevel18); // lua
 	m_All.Add(m_pMenus);
+	m_All.Add(&gs_LuaRenderLayerLevel19); // lua
 	m_All.Add(m_pGameConsole);
+	m_All.Add(&gs_LuaRenderLayerLevel20); // lua
 
 	// build the input stack
+	m_Input.Add(&gs_LuaInputLevel1); // can block every event (delete?)
 	m_Input.Add(&m_pMenus->m_Binder); // this will take over all input when we want to bind a key
+	m_Input.Add(&gs_LuaInputLevel2);
 	m_Input.Add(&m_pBinds->m_SpecialBinds);
+	m_Input.Add(&gs_LuaInputLevel3);
 	m_Input.Add(m_pGameConsole);
+	m_Input.Add(&gs_LuaInputLevel4);
 	m_Input.Add(m_pChat); // chat has higher prio due to tha you can quit it by pressing esc
+	m_Input.Add(&gs_LuaInputLevel5);
 	m_Input.Add(m_pMotd); // for pressing esc to remove it
+	m_Input.Add(&gs_LuaInputLevel6);
 	m_Input.Add(m_pMenus);
+	m_Input.Add(&gs_LuaInputLevel7);
 	m_Input.Add(&gs_Spectator);
+	m_Input.Add(&gs_LuaInputLevel8);
 	m_Input.Add(&gs_Emoticon);
+	m_Input.Add(&gs_LuaInputLevel9);
 	m_Input.Add(m_pControls);
+	m_Input.Add(&gs_LuaInputLevel10);
 	m_Input.Add(m_pBinds);
+	m_Input.Add(&gs_LuaInputLevel11);
 
 	// add the some console commands
 	Console()->Register("team", "i", CFGFLAG_CLIENT, ConTeam, this, "Switch team");
@@ -229,6 +283,9 @@ void CGameClient::OnConsoleInit()
 	m_RenderTools.m_pUI = UI();
 	for(int i = 0; i < m_All.m_Num; i++)
 		m_All.m_paComponents[i]->m_pClient = this;
+
+	for(int i = 0; i < m_Input.m_Num; i++)
+		m_Input.m_paComponents[i]->m_pClient = this;
 
 	// let all the other components register their console commands
 	for(int i = 0; i < m_All.m_Num; i++)
@@ -301,7 +358,14 @@ void CGameClient::DispatchInput()
 {
 	// handle mouse movement
 	float x = 0.0f, y = 0.0f;
-	Input()->MouseRelative(&x, &y);
+	if (!Client()->IsRecording())
+	{
+        Input()->MouseRelative(&x, &y);
+	}
+	else
+	{
+        Input()->MouseModeAbsolute();
+	}
 	if(x != 0.0f || y != 0.0f)
 	{
 		for(int h = 0; h < m_Input.m_Num; h++)
@@ -315,11 +379,6 @@ void CGameClient::DispatchInput()
 	for(int i = 0; i < Input()->NumEvents(); i++)
 	{
 		IInput::CEvent e = Input()->GetEvent(i);
-
-        m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(e.m_Key);
-        m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(e.m_Unicode);
-        m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(e.m_Flags);
-        m_pLua->m_pEventListener->OnEvent("OnKeyEvent");
 
 		for(int h = 0; h < m_Input.m_Num; h++)
 		{
@@ -541,7 +600,6 @@ void CGameClient::OnRender()
         Console()->Register("lua_eval", "r", CFGFLAG_CLIENT, ConLuaEval, this, "Evaluate a lua statement");
     }
 
-    int64 overalltime = time_get(); //Debug timing
     m_Music->Tick();
     m_Msgs->Tick();
     m_pLua->Tick();
@@ -618,7 +676,8 @@ void CGameClient::OnLuaPacket(CUnpacker *pUnpacker)
 	    return;
 	}
 
-    g_GameClient.m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(aData, Size);
+    int EventID = g_GameClient.m_pLua->m_pEventListener->CreateEventStack();
+    g_GameClient.m_pLua->m_pEventListener->GetParameters(EventID)->FindFree()->Set(aData, Size);
     g_GameClient.m_pLua->m_pEventListener->OnEvent("OnNetData"); //Call lua
 }
 
@@ -732,7 +791,8 @@ void CGameClient::OnStartGame()
 
 void CGameClient::OnRconLine(const char *pLine)
 {
-    m_pLua->m_pEventListener->m_Parameters.FindFree()->Set(pLine);
+    int EventID = m_pLua->m_pEventListener->CreateEventStack();
+    m_pLua->m_pEventListener->GetParameters(EventID)->FindFree()->Set(pLine);
     m_pLua->m_pEventListener->OnEvent("OnConsoleRemote");
 	m_pGameConsole->PrintLine(CGameConsole::CONSOLETYPE_REMOTE, pLine);
 }
@@ -1184,11 +1244,11 @@ void CGameClient::CClientData::UpdateRenderInfo()
 	if(g_GameClient.m_Snap.m_pGameInfoObj && g_GameClient.m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_TEAMS)
 	{
 		m_RenderInfo.m_Texture = g_GameClient.m_pSkins->Get(m_SkinID)->m_ColorTexture;
-		const int TeamColors[2] = {65387, 10223467};
+		//const int TeamColors[2] = {65387, 10223467};
 		if(m_Team >= TEAM_RED && m_Team <= TEAM_BLUE)
 		{
-			m_RenderInfo.m_ColorBody = g_GameClient.m_pSkins->GetColorV4(TeamColors[m_Team]);
-			m_RenderInfo.m_ColorFeet = g_GameClient.m_pSkins->GetColorV4(TeamColors[m_Team]);
+			//m_RenderInfo.m_ColorBody = g_GameClient.m_pSkins->GetColorV4(TeamColors[m_Team]);
+			//m_RenderInfo.m_ColorFeet = g_GameClient.m_pSkins->GetColorV4(TeamColors[m_Team]);
 		}
 		else
 		{
@@ -1313,7 +1373,7 @@ void CGameClient::ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pU
 		((CGameClient*)pUserData)->SendInfo(false);
 }
 
-void CGameClient::RenderLoading(char *pText)
+void CGameClient::RenderLoading(const char *pText)
 {
     UI()->ClipDisable();
     m_pMenus->RenderLoadingEx(pText);

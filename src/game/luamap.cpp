@@ -1,5 +1,8 @@
 #include "luamap.h"
 #include <base/math.h>
+/*DGI:Doc-Gen-Info*/
+/*DGI:Type:Map*/
+/*DGI:Exception:errorfunc*/
 
 
 #define LUA_FUNCTION_HEADER     lua_getglobal(L, "pLUA"); \
@@ -7,7 +10,7 @@
     lua_Debug Frame; \
     lua_getstack(L, 1, &Frame); \
     lua_getinfo(L, "nlSf", &Frame); \
-    (void *)pSelf;
+    ((void)(pSelf));
 
 int CLuaMapFile::StrIsInteger(const char *pStr)
 {
@@ -246,6 +249,7 @@ int CLuaMapFile::ErrorFunc(lua_State *L)
 {
     lua_getglobal(L, "pLUA");
     CLuaMapFile *pSelf = (CLuaMapFile *)lua_touserdata(L, -1);
+    ((void)(pSelf));
 
     lua_pop(L,1);
 

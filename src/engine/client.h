@@ -75,7 +75,12 @@ public:
 	virtual void Connect(const char *pAddress) = 0;
 	virtual void Disconnect() = 0;
 	virtual void Quit() = 0;
-	virtual const char *DemoPlayer_Record(const char *pFilename, int StorageType) = 0;
+	virtual const char *DemoPlayer_Record(const char *pFilename, int StorageType, int FPS, int Format) = 0;
+	enum DEMO_RECORD_FORMAT
+	{
+	    DEMO_RECORD_FORMAT_OGV = 1,
+	    DEMO_RECORD_FORMAT_WEBM = 2,
+	};
 	virtual const char *DemoPlayer_Play(const char *pFilename, int StorageType) = 0;
 	virtual void DemoRecorder_Start(const char *pFilename, bool WithTimestamp) = 0;
 	virtual void DemoRecorder_HandleAutoStart() = 0;
@@ -146,6 +151,9 @@ public:
 	virtual int GetDebugFont() = 0;
 
     virtual int64 DemoTimeGet() = 0;
+    virtual bool IsRecording() = 0;
+	
+	virtual void RenderDemo(const char *aDemoFolder, const char *aDemoName, int StorageType,int Fps, int Format) = 0;
 };
 
 class IGameClient : public IInterface
@@ -178,7 +186,7 @@ public:
 	virtual const char *NetVersion() = 0;
 	virtual const char *NetVersionLua() = 0;
 
-	virtual void RenderLoading(char *pText) = 0;
+	virtual void RenderLoading(const char *pText) = 0;
 };
 
 extern IGameClient *CreateGameClient();

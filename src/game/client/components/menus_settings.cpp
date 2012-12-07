@@ -823,7 +823,6 @@ int CMenus::LuaFetchCallback(const char *pName, int IsDir, int StorageType, void
 		return 0;
     for (int i = 0; i < MAX_LUA_FILES; i++)
     {
-        char aBuf[256];
         const char *pPart = str_find_rev(pSelf->m_pClient->m_pLuaCore->GetFileDir(i), "/");
         if (pPart)
         {
@@ -873,7 +872,7 @@ void CMenus::RenderSettingsLua(CUIRect MainView)
         MainView.HSplitTop(20.0f, &Button, &MainView);
         CUIRect AddButton;
         Button.VSplitRight(100.0f, &Button, &AddButton);
-        if (DoButton_MenuTab(&s_AddScriptMode, Localize("Add script"), s_AddScriptMode, &AddButton, CUI::CORNER_ALL))
+        if (DoButton_MenuTab(&s_AddScriptMode, s_AddScriptMode ? Localize("Back") : Localize("Add script") , s_AddScriptMode, &AddButton, CUI::CORNER_ALL))
         {
             s_AddScriptMode ^=1;
             LuaPopulate();

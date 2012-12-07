@@ -7,17 +7,27 @@
 #include <game/server/entities/projectile.h>
 #include <game/server/entities/laser.h>
 #include <engine/shared/config.h>
+#include <engine/shared/array.h> //faster, thread safe array!
 #include <engine/external/zlib/zlib.h>
 #include <engine/config.h>
+#include <base/tl/array.h>
 #include <base/tl/sorted_array.h>
 #include <game/luaevent.h>
+
+#if defined(CONF_FAMILY_WINDOWS) //mysql -.-
+	#include <windows.h>
+#endif
 
 extern "C" { // lua
     #define LUA_CORE /* make sure that we don't try to import these functions */
     #include <engine/external/lua/lua.h>
     #include <engine/external/lua/lualib.h> /* luaL_openlibs */
     #include <engine/external/lua/lauxlib.h> /* luaL_loadfile */
+
+    #include <mysql.h>
 }
+
+#include <game/luashared.h>
 
 class CLuaFile
 {
@@ -25,6 +35,7 @@ public:
     CLuaFile();
     ~CLuaFile();
     class CLua *m_pLuaHandler;
+    CLuaShared<CLuaFile> *m_pLuaShared;
     CGameContext *m_pServer;
     //void UiTick();
     void Tick();
@@ -124,7 +135,8 @@ public:
     static inline int SendChat(lua_State *L);
     static inline int SendChatTarget(lua_State *L);
 
-    //Player  Todo: PlayerSet
+    //Player
+    static inline int GetPlayerIP(lua_State *L);
     static inline int GetPlayerName(lua_State *L);
     static inline int GetPlayerClan(lua_State *L);
     static inline int GetPlayerCountry(lua_State *L);
@@ -135,6 +147,7 @@ public:
     static inline int GetPlayerColorFeet(lua_State *L);
     static inline int GetPlayerColorBody(lua_State *L);
     static inline int GetPlayerColorSkin(lua_State *L); //Todo: implement me
+    static inline int GetPlayerSpectateID(lua_State *L);
 
     static inline int SetPlayerName(lua_State *L);
     static inline int SetPlayerClan(lua_State *L);
@@ -144,6 +157,7 @@ public:
     static inline int SetPlayerSkin(lua_State *L);
     static inline int SetPlayerColorFeet(lua_State *L);
     static inline int SetPlayerColorBody(lua_State *L);
+    static inline int SetPlayerSpectateID(lua_State *L);
 
 
     //Config
@@ -171,6 +185,15 @@ public:
     static inline int ProjectileGetLifespan(lua_State *L);
     static inline int ProjectileGetExplosive(lua_State *L);
     static inline int ProjectileGetSoundImpact(lua_State *L);
+    static inline int ProjectileGetStartTick(lua_State *L);
+    static inline int ProjectileSetWeapon(lua_State *L);
+    static inline int ProjectileSetOwner(lua_State *L);
+    static inline int ProjectileSetDir(lua_State *L);
+    static inline int ProjectileSetStartPos(lua_State *L);
+    static inline int ProjectileSetLifespan(lua_State *L);
+    static inline int ProjectileSetExplosive(lua_State *L);
+    static inline int ProjectileSetSoundImpact(lua_State *L);
+    static inline int ProjectileSetStartTick(lua_State *L);
     static inline int ProjectileCreate(lua_State *L);
 
 	//LaserCreate(Pos.x, Pos.y, Dir.x, Dir.y, StartEnergy, Owner)
@@ -180,6 +203,8 @@ public:
     static inline int CreateExplosion(lua_State *L);
     static inline int CreateDeath(lua_State *L);
     static inline int CreateDamageIndicator(lua_State *L);
+    static inline int CreateHammerHit(lua_State *L);
+    static inline int CreateSound(lua_State *L);
 
     //Client join
 
@@ -187,18 +212,19 @@ public:
     //Spawn
     static inline int SetAutoRespawn(lua_State *L);
 
-    static inline int CharacterTakeDamage(lua_State *L);
-    static inline int CharacterGetHealth(lua_State *L);
-    static inline int CharacterGetArmor(lua_State *L);
     static inline int CharacterSpawn(lua_State *L);
     static inline int CharacterIsAlive(lua_State *L);
     static inline int CharacterKill(lua_State *L);
     static inline int CharacterIsGrounded(lua_State *L);
     static inline int CharacterIncreaseHealth(lua_State *L);
     static inline int CharacterIncreaseArmor(lua_State *L);
-    static inline int CharacterIncreaseAmmo(lua_State *L);
+    static inline int CharacterSetHealth(lua_State *L);
+    static inline int CharacterSetArmor(lua_State *L);
+    static inline int CharacterGetHealth(lua_State *L);
+    static inline int CharacterGetArmor(lua_State *L);
     static inline int CharacterSetAmmo(lua_State *L);
     static inline int CharacterGetAmmo(lua_State *L);
+    static inline int CharacterTakeDamage(lua_State *L);
     static inline int SendCharacterInfo(lua_State *L);
     //Input
     static inline int CharacterSetInputDirection(lua_State *L);
@@ -210,6 +236,7 @@ public:
 
     static inline int CharacterGetInputTarget(lua_State *L);
     static inline int CharacterGetActiveWeapon(lua_State *L);
+    static inline int CharacterSetActiveWeapon(lua_State *L);
 
     static inline int CharacterDirectInput(lua_State *L);
     static inline int CharacterPredictedInput(lua_State *L);
@@ -220,6 +247,10 @@ public:
     static inline int Win(lua_State *L);
 
     static inline int SetGametype(lua_State *L);
+
+
+    static inline int GetTuning(lua_State *L);
+    static inline int SetTuning(lua_State *L);
 
     //Dummy
     static inline int DummyCreate(lua_State *L);
@@ -233,6 +264,105 @@ public:
     static inline int CreateDirectory(lua_State *L);
 
     static inline int GetDate(lua_State *L);
+
+
+    //tick stuff
+    static inline int GetTick(lua_State *L);
+    static inline int GetTickSpeed(lua_State *L);
+
+
+
+
+
+
+
+
+
+
+
+
+    //mysql stuff - welcome to the next level
+
+    //lua functions
+    static inline int MySQLConnect(lua_State *L);
+    static inline int MySQLEscapeString(lua_State *L);
+    static inline int MySQLSelectDatabase(lua_State *L);
+    static inline int MySQLIsConnected(lua_State *L);
+    static inline int MySQLQuery(lua_State *L);
+    static inline int MySQLClose(lua_State *L);
+    static inline int MySQLFetchResults(lua_State *L);
+
+    // internal stuff
+    MYSQL m_MySQL;
+    bool m_MySQLConnected;
+    inline void MySQLTick();
+    inline void MySQLFreeResult(int Id, int QueryId);
+    inline void MySQLFreeAll();
+    inline void MySQLInit();
+    int m_IncrementalQueryId;
+    struct CQuery
+    {
+        int m_QueryId;
+        char *m_pQuery;
+        int m_Length;
+    };
+    class CField
+    {
+    public:
+        enum TYPES
+        {
+            TYPE_INVALID = 0,
+            TYPE_INTEGER,
+            TYPE_FLOAT,
+            TYPE_DATA,
+        };
+        TYPES m_Type;
+        char *m_pData;
+        long long m_Number;
+        double m_Float;
+        char *m_pName;
+        long m_Length;
+
+        CField()
+        {
+            m_Type = TYPE_INVALID;
+            m_pData = 0;
+            m_pName = 0;
+        }
+        ~CField()
+        {
+            if (m_pData)
+                delete []m_pData;
+            if (m_pName)
+                delete []m_pName;
+        }
+
+    };
+    struct CRow
+    {
+        CArray<CField *> m_lpFields;
+    };
+    struct CResults
+    {
+        int m_QueryId;
+        bool m_Error;
+        CArray<CRow *> m_lpRows;
+        int64 m_Timestamp;
+    };
+    struct CMySQLThread
+    {
+        CLuaFile *m_pLua;
+        volatile int m_Queries;
+        void *pThread;
+        bool m_Running;
+        volatile LOCK m_MySSQLLock;
+    };
+
+    CArray<CQuery *> m_lpQueries;
+    CArray<CResults *> m_lpResults;
+    CMySQLThread m_MySQLThread;
+    static void MySQLWorkerThread(void *pUser);
+
 };
 
 class CLua
@@ -250,6 +380,8 @@ public:
 
     bool m_ConsoleInit;
 
+    array<char *>m_lpEvalBuffer;
+    void Eval(const char *pCode);
     CLuaFile m_aLuaFiles[MAX_LUA_FILES];
     class CLuaEventListener<CLuaFile> *m_pEventListener;
 
@@ -279,7 +411,7 @@ static int StrIsFloat(const char *pStr)
 {
 	while(*pStr)
 	{
-		if(!(*pStr >= '0' && *pStr <= '9' || *pStr == '.'))
+		if(!((*pStr >= '0' && *pStr <= '9') || *pStr == '.'))
 			return 0;
 		pStr++;
 	}

@@ -55,6 +55,8 @@ public:
 	bool IncreaseHealth(int Amount, int Max = 10);
 	bool IncreaseArmor(int Amount, int Max = 10);
 
+	bool SetHealth(int Value) { return m_Health = Value; }
+	bool SetArmor(int Value) { return m_Armor = Value; }
 	int GetHealth() { return m_Health; }
 	int GetArmor() { return m_Armor; }
 
@@ -85,6 +87,9 @@ private:
 	class CPlayer *m_pPlayer;
 
 	bool m_Alive;
+
+	vec2 m_PrevPos;
+	int m_LastSpeedup;
 
 	// weapon info
 	CEntity *m_apHitObjects[10];

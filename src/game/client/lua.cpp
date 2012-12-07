@@ -49,7 +49,9 @@ void CLua::Tick()
         else if (m_aLuaFiles[i].GetScriptName()[0] && m_pClient->m_pLuaCore->GetFileDir(i)[0] == 0)
             m_aLuaFiles[i].Close();
         else if (m_aLuaFiles[i].GetScriptName()[0])
+        {
             m_aLuaFiles[i].Tick();
+        }
     }
 }
 
@@ -112,6 +114,7 @@ void CLua::ConfigClose(char *pFileDir)
 void CLua::ConsolePrintCallback(const char *pLine, void *pUserData)
 {
     CLua *pSelf = (CLua *)pUserData;
-    pSelf->m_pEventListener->m_Parameters.FindFree()->Set((char *)pLine);
+    int EventID = pSelf->m_pEventListener->CreateEventStack();
+    pSelf->m_pEventListener->GetParameters(EventID)->FindFree()->Set((char *)pLine);
     pSelf->m_pEventListener->OnEvent("OnConsole");
 }

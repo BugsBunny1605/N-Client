@@ -10,6 +10,7 @@
 #include <game/client/components/chat.h>
 #include <game/client/components/menus.h>
 #include <game/client/components/scoreboard.h>
+#include <game/client/components/camera.h>
 
 #include "controls.h"
 
@@ -173,7 +174,7 @@ int CControls::SnapInput(int *pData, int *pPredictionData)
 			m_InputData.m_TargetY = (int)(cosf(t*3)*100.0f);
 		}
 
-	m_PredictionData = m_InputData;
+        m_PredictionData = m_InputData;
 
         if (m_pClient->m_pLuaBinding) //make sure that we have this class
         {
@@ -186,6 +187,7 @@ int CControls::SnapInput(int *pData, int *pPredictionData)
             m_pClient->m_pLuaBinding->m_ControlTargetXPre = m_InputData.m_TargetX;
             m_pClient->m_pLuaBinding->m_ControlTargetYPre = m_InputData.m_TargetY;
 
+            int EventID = m_pClient->m_pLua->m_pEventListener->CreateEventStack();
             m_pClient->m_pLua->m_pEventListener->OnEvent("OnControlChange");
 
             if (m_pClient->m_pLuaBinding->m_ControlDirectionIsSet)
@@ -297,7 +299,7 @@ bool CControls::OnMouseMove(float x, float y)
 
 void CControls::ClampMousePos()
 {
-	if(m_pClient->m_Snap.m_SpecInfo.m_Active && !m_pClient->m_Snap.m_SpecInfo.m_UsePosition)
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active && !m_pClient->m_Snap.m_SpecInfo.m_UsePosition || m_pClient->m_pCamera->m_ForceFreeView)
 	{
 		m_MousePos.x = clamp(m_MousePos.x, 200.0f, Collision()->GetWidth()*32-200.0f);
 		m_MousePos.y = clamp(m_MousePos.y, 200.0f, Collision()->GetHeight()*32-200.0f);

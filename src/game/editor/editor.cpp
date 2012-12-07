@@ -123,6 +123,7 @@ void CLayerGroup::Render()
 void CLayerGroup::AddLayer(CLayer *l)
 {
 	m_pMap->m_Modified = true;
+	m_pMap->m_UndoModified++;
 	m_lLayers.add(l);
 }
 
@@ -132,6 +133,7 @@ void CLayerGroup::DeleteLayer(int Index)
 	delete m_lLayers[Index];
 	m_lLayers.remove_index(Index);
 	m_pMap->m_Modified = true;
+	m_pMap->m_UndoModified++;
 }
 
 void CLayerGroup::GetSize(float *w, float *h)
@@ -153,6 +155,7 @@ int CLayerGroup::SwapLayers(int Index0, int Index1)
 	if(Index1 < 0 || Index1 >= m_lLayers.size()) return Index0;
 	if(Index0 == Index1) return Index0;
 	m_pMap->m_Modified = true;
+	m_pMap->m_UndoModified++;
 	swap(m_lLayers[Index0], m_lLayers[Index1]);
 	return Index1;
 }
@@ -704,6 +707,8 @@ void CEditor::CallbackOpenMap(const char *pFileName, int StorageType, void *pUse
 		pEditor->SortImages();
 		pEditor->m_Dialog = DIALOG_NONE;
 		pEditor->m_Map.m_Modified = false;
+		pEditor->m_Map.m_UndoModified = 0;
+        pEditor->m_LastUndoUpdateTime = time_get();
 	}
 }
 void CEditor::CallbackAppendMap(const char *pFileName, int StorageType, void *pUser)
@@ -733,6 +738,8 @@ void CEditor::CallbackSaveMap(const char *pFileName, int StorageType, void *pUse
 		str_copy(pEditor->m_aFileName, pFileName, sizeof(pEditor->m_aFileName));
 		pEditor->m_ValidSaveFilename = StorageType == IStorage::TYPE_SAVE && pEditor->m_pFileDialogPath == pEditor->m_aFileDialogCurrentFolder;
 		pEditor->m_Map.m_Modified = false;
+		pEditor->m_Map.m_UndoModified = 0;
+        pEditor->m_LastUndoUpdateTime = time_get();
 	}
 
 	pEditor->m_Dialog = DIALOG_NONE;
@@ -770,6 +777,7 @@ void CEditor::CallbackOpenLua(const char *pFileName, int StorageType, void *pUse
 	io_close(LuaFile);
     pEditor->m_Dialog = DIALOG_NONE;
     pEditor->m_Map.m_Modified = true;
+    pEditor->m_Map.m_UndoModified++;
 }
 
 void CEditor::DoToolbar(CUIRect ToolBar)
@@ -993,10 +1001,35 @@ void CEditor::DoToolbar(CUIRect ToolBar)
 		static int s_BorderBut = 0;
 		CLayerTiles *pT = (CLayerTiles *)GetSelectedLayerType(0, LAYERTYPE_TILES);
 
+		// no border for tele layer
+		if(pT && (pT->m_Tele || pT->m_Speedup))
+			pT = 0;
+
 		if(DoButton_Editor(&s_BorderBut, "Border", pT?0:-1, &Button, 0, "Adds border tiles"))
 		{
 			if(pT)
 				DoMapBorder();
+		}
+
+		// do tele button
+		TB_Bottom.VSplitLeft(5.0f, &Button, &TB_Bottom);
+		TB_Bottom.VSplitLeft(60.0f, &Button, &TB_Bottom);
+		static int s_TeleButton = 0;
+		CLayerTiles *pS = (CLayerTiles *)GetSelectedLayerType(0, LAYERTYPE_TILES);
+
+		if(DoButton_Ex(&s_TeleButton, "Teleporter", (pS && pS->m_Tele)?0:-1, &Button, 0, "Teleporter", CUI::CORNER_ALL))
+		{
+			static int s_TelePopupId = 0;
+			UiInvokePopupMenu(&s_TelePopupId, 0, UI()->MouseX(), UI()->MouseY(), 120, 23, PopupTele);
+		}
+
+		TB_Bottom.VSplitLeft(5.0f, &Button, &TB_Bottom);
+		TB_Bottom.VSplitLeft(60.0f, &Button, &TB_Bottom);
+		static int s_SpeedupButton = 0;
+		if(DoButton_Ex(&s_SpeedupButton, "Speedup", (pS && pS->m_Speedup)?0:-1, &Button, 0, "Speedup", CUI::CORNER_ALL))
+		{
+			static int s_SpeedupPopupId = 0;
+			UiInvokePopupMenu(&s_SpeedupPopupId, 0, UI()->MouseX(), UI()->MouseY(), 120, 43, PopupSpeedup);
 		}
 	}
 
@@ -1661,12 +1694,17 @@ void CEditor::DoMapEditor(CUIRect View, CUIRect ToolBar)
 			//UI()->ClipEnable(&view);
 		}
 
-		// render the game above everything else
-		if(m_Map.m_pGameGroup->m_Visible && m_Map.m_pGameLayer->m_Visible)
-		{
-			m_Map.m_pGameGroup->MapScreen();
-			m_Map.m_pGameLayer->Render();
-		}
+		// render the game and tele above everything else
+		if(m_Map.m_pGameGroup->m_Visible)
+ 		{
+ 			m_Map.m_pGameGroup->MapScreen();
+			if(m_Map.m_pGameLayer->m_Visible)
+				m_Map.m_pGameLayer->Render();
+			if(m_Map.m_pTeleLayer && m_Map.m_pTeleLayer->m_Visible)
+				m_Map.m_pTeleLayer->Render();
+			if(m_Map.m_pSpeedupLayer && m_Map.m_pSpeedupLayer->m_Visible)
+				m_Map.m_pSpeedupLayer->Render();
+ 		}
 
 		CLayerTiles *pT = static_cast<CLayerTiles *>(GetSelectedLayerType(0, LAYERTYPE_TILES));
 		if(m_ShowTileInfo && pT && pT->m_Visible && m_ZoomLevel <= 300)
@@ -1745,6 +1783,38 @@ void CEditor::DoMapEditor(CUIRect View, CUIRect ToolBar)
 			g->MapScreen();
 
 			RenderGrid(g);
+
+            if ((Input()->KeyPressed(KEY_LCTRL) || Input()->KeyPressed(KEY_RCTRL)))
+            {
+                Graphics()->TextureSet(-1);
+                Graphics()->LinesBegin();
+
+                float x = UI()->MouseWorldX();
+                float y = UI()->MouseWorldY();
+
+
+                Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+                IGraphics::CLineItem Line = IGraphics::CLineItem(x, y, x, y - 175.0f);
+                Graphics()->LinesDraw(&Line, 1);
+
+                Graphics()->SetColor(1.0f, 0.0f, 0.0f, 1.0f);
+                Line = IGraphics::CLineItem(x, y - 175.0f, x, y - 150.0f - 175.0f);
+                Graphics()->LinesDraw(&Line, 1);
+
+                for (float a = 0; a < pi * 2; a = a + 0.1f)
+                {
+                    Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+                    float x1 = x + cosf(a) * 380.f;
+                    float y1 = y + sinf(a) * 380.f;
+                    float x2 = x + cosf(a + 0.1f) * 380.f;
+                    float y2 = y + sinf(a + 0.1f) * 380.f;
+                    Line = IGraphics::CLineItem(x1, y1, x2, y2);
+                    Graphics()->LinesDraw(&Line, 1);
+                }
+                Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+                Graphics()->LinesEnd();
+
+            }
 
 			for(int i = 0; i < NumEditLayers; i++)
 			{
@@ -1983,10 +2053,7 @@ void CEditor::DoMapEditor(CUIRect View, CUIRect ToolBar)
 				// release mouse
 				if(!UI()->MouseButton(0))
 				{
-				    if (s_Operation == OP_BRUSH_DRAW)
-				        CreateUndoStep(Localize("Brush draw"));
-				    if (s_Operation == OP_BRUSH_PAINT)
-				        CreateUndoStep(Localize("Brush paint"));
+				    m_Map.m_UndoModified++;
 					s_Operation = OP_NONE;
 					UI()->SetActiveItem(0);
 				}
@@ -2416,6 +2483,8 @@ void CEditor::RenderLayers(CUIRect ToolBox, CUIRect ToolBar, CUIRect View)
 				if(int Result = DoButton_Ex(m_Map.m_lGroups[g]->m_lLayers[i], aBuf, g==m_SelectedGroup&&i==m_SelectedLayer, &Button,
 					BUTTON_CONTEXT, "Select layer.", 0, FontSize))
 				{
+					if(m_Map.m_lGroups[g]->m_lLayers[i] == m_Map.m_pTeleLayer || m_Map.m_lGroups[g]->m_lLayers[i] == m_Map.m_pSpeedupLayer)
+						m_Brush.Clear();
 					m_SelectedLayer = i;
 					m_SelectedGroup = g;
 					static int s_LayerPopupID = 0;
@@ -3112,6 +3181,8 @@ void CEditor::RenderUndoList(CUIRect View)
 	Scroll.HMargin(5.0f, &Scroll);
 	m_UndoScrollValue = UiDoScrollbarV(&ScrollBar, &Scroll, m_UndoScrollValue);
 
+    float TopY = List.y;
+    float Height = List.h;
     UI()->ClipEnable(&List);
     int ClickedIndex = -1;
     int HoveredIndex = -1;
@@ -3122,6 +3193,10 @@ void CEditor::RenderUndoList(CUIRect View)
     for (int i = 0; i < m_lUndoSteps.size(); i++)
     {
         List.HSplitTop(17.0f, &Button, &List);
+        if (List.y < TopY)
+            continue;
+        if (List.y - 17.0f > TopY + Height)
+            break;
 		if(DoButton_Editor(&m_lUndoSteps[i].m_ButtonId, m_lUndoSteps[i].m_aName, 0, &Button, 0, "Undo to this step"))
             ClickedIndex = i;
         if (UI()->HotItem() == &m_lUndoSteps[i].m_ButtonId)
@@ -3351,6 +3426,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 		if(DoButton_Editor(&s_New4dButton, "Color+", 0, &Button, 0, "Creates a new color envelope"))
 		{
 			m_Map.m_Modified = true;
+			m_Map.m_UndoModified++;
 			pNewEnv = m_Map.NewEnvelope(4);
 		}
 
@@ -3360,6 +3436,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 		if(DoButton_Editor(&s_New2dButton, "Pos.+", 0, &Button, 0, "Creates a new pos envelope"))
 		{
 			m_Map.m_Modified = true;
+			m_Map.m_UndoModified++;
 			pNewEnv = m_Map.NewEnvelope(3);
 		}
 
@@ -3372,6 +3449,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 			if(DoButton_Editor(&s_DelButton, "Delete", 0, &Button, 0, "Delete this envelope"))
 			{
 				m_Map.m_Modified = true;
+				m_Map.m_UndoModified++;
 				m_Map.DeleteEnvelope(m_SelectedEnvelope);
 				if(m_SelectedEnvelope >= m_Map.m_lEnvelopes.size())
 					m_SelectedEnvelope = m_Map.m_lEnvelopes.size()-1;
@@ -3420,7 +3498,10 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 
 			static float s_NameBox = 0;
 			if(DoEditBox(&s_NameBox, &Button, pEnvelope->m_aName, sizeof(pEnvelope->m_aName), 10.0f, &s_NameBox))
+			{
 				m_Map.m_Modified = true;
+				m_Map.m_UndoModified++;
+			}
 		}
 	}
 
@@ -3520,6 +3601,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 						f2fx(aChannels[0]), f2fx(aChannels[1]),
 						f2fx(aChannels[2]), f2fx(aChannels[3]));
 					m_Map.m_Modified = true;
+					m_Map.m_UndoModified++;
 				}
 
 				m_ShowEnvelopePreview = 1;
@@ -3694,6 +3776,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 							m_ShowEnvelopePreview = 1;
 							m_SelectedEnvelopePoint = i;
 							m_Map.m_Modified = true;
+							m_Map.m_UndoModified++;
 						}
 
 						ColorMod = 100.0f;
@@ -3713,6 +3796,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 						{
 							pEnvelope->m_lPoints.remove_index(i);
 							m_Map.m_Modified = true;
+							m_Map.m_UndoModified++;
 						}
 
 						m_ShowEnvelopePreview = 1;
@@ -4094,6 +4178,8 @@ void CEditor::Reset(bool CreateDefault)
 	m_MouseDeltaWy = 0;
 
 	m_Map.m_Modified = false;
+	m_Map.m_UndoModified = 0;
+    m_LastUndoUpdateTime = time_get();
 
 	m_ShowEnvelopePreview = 0;
 }
@@ -4122,6 +4208,7 @@ void CEditorMap::DeleteEnvelope(int Index)
 		return;
 
 	m_Modified = true;
+	m_UndoModified++;
 
 	// fix links between envelopes and quads
 	for(int i = 0; i < m_lGroups.size(); ++i)
@@ -4160,6 +4247,20 @@ void CEditorMap::MakeGameLayer(CLayer *pLayer)
 	m_pGameLayer->m_TexID = m_pEditor->ms_EntitiesTexture;
 }
 
+void CEditorMap::MakeTeleLayer(CLayer *pLayer)
+{
+	m_pTeleLayer = (CLayerTele *)pLayer;
+	m_pTeleLayer->m_pEditor = m_pEditor;
+	m_pTeleLayer->m_TexID = m_pEditor->ms_EntitiesTexture;
+}
+
+void CEditorMap::MakeSpeedupLayer(CLayer *pLayer)
+{
+	m_pSpeedupLayer = (CLayerSpeedup *)pLayer;
+	m_pSpeedupLayer->m_pEditor = m_pEditor;
+	m_pSpeedupLayer->m_TexID = m_pEditor->ms_EntitiesTexture;
+}
+
 void CEditorMap::MakeGameGroup(CLayerGroup *pGroup)
 {
 	m_pGameGroup = pGroup;
@@ -4176,9 +4277,12 @@ void CEditorMap::Clean()
 	m_lImages.delete_all();
 
 	m_pGameLayer = 0x0;
+	m_pTeleLayer = 0x0;
+	m_pSpeedupLayer = 0x0;
 	m_pGameGroup = 0x0;
 
 	m_Modified = false;
+	m_UndoModified = 0;
 }
 
 void CEditorMap::CreateDefault(int EntitiesTexture)
@@ -4208,6 +4312,8 @@ void CEditorMap::CreateDefault(int EntitiesTexture)
 	MakeGameGroup(NewGroup());
 	MakeGameLayer(new CLayerGame(50, 50));
 	m_pGameGroup->AddLayer(m_pGameLayer);
+	m_pTeleLayer = 0x0;
+	m_pSpeedupLayer = 0x0;
 }
 
 void CEditor::Init()
@@ -4236,6 +4342,8 @@ void CEditor::Init()
 
 	Reset();
 	m_Map.m_Modified = false;
+	m_Map.m_UndoModified = 0;
+    m_LastUndoUpdateTime = time_get();
 }
 
 void CEditor::DoMapBorder()
@@ -4257,10 +4365,10 @@ void CEditor::DoMapBorder()
 
 void CEditor::CreateUndoStep(const char *pName)
 {
-    dbg_msg("step", "%s %i", pName, m_lUndoSteps.size());
-
     CUndo NewStep;
-    str_copy(NewStep.m_aName, pName, sizeof(NewStep.m_aName));
+    str_timestamp(NewStep.m_aName, sizeof(NewStep.m_aName));
+    if (pName)
+        str_copy(NewStep.m_aName, pName, sizeof(NewStep.m_aName));
     if (m_lUndoSteps.size())
         NewStep.m_FileNum = m_lUndoSteps[m_lUndoSteps.size() - 1].m_FileNum + 1;
     else
@@ -4341,6 +4449,12 @@ void CEditor::UpdateAndRender()
 	if(Input()->KeyDown(KEY_F10))
 		m_ShowMousePointer = false;
 
+    if ((m_LastUndoUpdateTime + time_freq() * 60 < time_get() && m_Map.m_UndoModified) || m_Map.m_UndoModified >= 10)
+    {
+        m_Map.m_UndoModified = 0;
+        m_LastUndoUpdateTime = time_get();
+        CreateUndoStep();
+    }
 	Render();
 
 	if(Input()->KeyDown(KEY_F10))

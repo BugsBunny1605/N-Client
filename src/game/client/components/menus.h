@@ -223,6 +223,28 @@ class CMenus : public CComponent
 	void RenderNews(CUIRect MainView);
 
 	// found in menus_demo.cpp
+	enum
+	{
+	    KEYFRAME_NONE = 0,
+	    KEYFRAME_POS = 1,
+	    KEYFRAME_SPEED = 2,
+	    KEYFRAME_ZOOM = 4
+	};
+	struct CKeyFrame
+	{
+	    int m_Type;
+	    vec2 m_Pos;
+	    float m_Speed;
+	    float m_Zoom;
+	    int m_Tick;
+	    int64 m_Time;
+	};
+    CArray<CKeyFrame> m_lKeyFrames;
+	int m_SelectedKeyFrame;
+	bool m_UseKeyFrames;
+	float m_Zoom;
+
+	void RenderKeyFrameWindow(CUIRect MainView);
 	void RenderDemoPlayer(CUIRect MainView);
 	void RenderDemoList(CUIRect MainView);
 
@@ -262,6 +284,10 @@ class CMenus : public CComponent
 	void SetActive(bool Active);
 public:
 
+    //demo recorder ui
+    bool m_Recording;
+    IOHANDLE m_RecordingProcess;
+
 	enum
 	{
 		POPUP_NONE=0,
@@ -274,6 +300,8 @@ public:
 		POPUP_COUNTRY,
 		POPUP_DELETE_DEMO,
 		POPUP_RENAME_DEMO,
+		POPUP_CONVERT_DEMO,
+		POPUP_CONVERT_DEMO_PROGRESS,
 		POPUP_REMOVE_FRIEND,
 		POPUP_SOUNDERROR,
 		POPUP_PASSWORD,
@@ -302,6 +330,7 @@ public:
 		PAGE_SERVERS_LAN,
 		PAGE_SERVERS_FAVORITES,
 		PAGE_SERVERS_RECENT,
+		PAGE_SERVERS_WARFINDER,
 	};
 	// found in menus_popup.cpp
 	void RenderPopus(CUIRect MainView);
@@ -323,7 +352,7 @@ public:
 	CMenus();
 
 	void RenderLoading();
-	void RenderLoadingEx(char *pText);
+	void RenderLoadingEx(const char *pText);
 
 	bool IsActive() const { return m_MenuActive; }
 

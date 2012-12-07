@@ -3,6 +3,10 @@
 #include <string.h>
 #include <time.h>
 
+#ifndef GAME_LUAGLOBAL_H
+#define GAME_LUAGLOBAL_H
+
+
 #if defined(LUA_USE_GMTIME_R)
 
 #define l_gmtime(t,r)		gmtime_r(t,r)
@@ -20,7 +24,7 @@
     lua_Debug Frame; \
     lua_getstack(L, 1, &Frame); \
     lua_getinfo(L, "nlSf", &Frame); \
-    (void *)pSelf;
+    ((void)(pSelf));
 
 #if !defined(LUA_USE_POSIX)
 #define LUA_STRFTIMEOPTIONS	{ "aAbBcdHIjmMpSUwWxXyYz%", "" }
@@ -98,3 +102,5 @@ static const char *checkoption (lua_State *L, const char *conv, char *buff)
                   lua_pushfstring(L, "invalid conversion specifier '%%%s'", conv));
     return conv;  /* to avoid warnings */
 }
+
+#endif
