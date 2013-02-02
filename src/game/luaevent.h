@@ -168,7 +168,7 @@ void CLuaEventListener<T>::OnEvent(const char *pEvent)
             if (r.front().m_pLuaFile->FunctionExist(r.front().m_aLuaFunction))
             {
                 int Num = lua_gettop(r.front().m_pLuaFile->m_pLua); //get stack size before calling fx
-                int Start = lua_gettop(r.front().m_pLuaFile->m_pLua); //get stack size before calling fx
+                int Start = lua_gettop(r.front().m_pLuaFile->m_pLua); //get stack size before calling fx				
                 r.front().m_pLuaFile->FunctionPrepare(r.front().m_aLuaFunction);
                 for (int i = 0; i < MAX_EVENT_VARIABLES; i++)
                 {
@@ -202,24 +202,24 @@ void CLuaEventListener<T>::OnEvent(const char *pEvent)
                     }
                 }
                 r.front().m_pLuaFile->FunctionExec();
-                Num = lua_gettop(r.front().m_pLuaFile->m_pLua) - Num; //get number of returns
-                for (int i = 0; i < Num; i++) //lua stack begins with 1 - so manipulate every i
+                Num = lua_gettop(r.front().m_pLuaFile->m_pLua) - Num; //get number of returns				
+                for (int i = 0, i1=Start+1; i < Num; i++, i1++) //lua stack begins with 1 - so manipulate every i
                 {
-                	if (lua_isnumber(r.front().m_pLuaFile->m_pLua, Start + i + 1))
+                	if (lua_isnumber(r.front().m_pLuaFile->m_pLua, i1))
                     {
-                        if (lua_tointeger(r.front().m_pLuaFile->m_pLua, Start + i + 1) == lua_tonumber(r.front().m_pLuaFile->m_pLua, Start + i + 1))
-                            m_aStackReturns[m_StackSize].m_aVars[i].Set((int)lua_tointeger(r.front().m_pLuaFile->m_pLua, Start + i + 1));
+                        if (lua_tointeger(r.front().m_pLuaFile->m_pLua, i1) == lua_tonumber(r.front().m_pLuaFile->m_pLua, i1))
+                            m_aStackReturns[m_StackSize].m_aVars[i].Set((int)lua_tointeger(r.front().m_pLuaFile->m_pLua, i1));
                         else
-                            m_aStackReturns[m_StackSize].m_aVars[i].Set((float)lua_tonumber(r.front().m_pLuaFile->m_pLua, Start + i + 1));
+                            m_aStackReturns[m_StackSize].m_aVars[i].Set((float)lua_tonumber(r.front().m_pLuaFile->m_pLua, i1));
                     }
-                    else if (lua_isboolean(r.front().m_pLuaFile->m_pLua, Start + i + 1))
+                    else if (lua_isboolean(r.front().m_pLuaFile->m_pLua, i1))
                     {
-                        m_aStackReturns[m_StackSize].m_aVars[i].Set(lua_toboolean(r.front().m_pLuaFile->m_pLua, Start + i + 1));
+                        m_aStackReturns[m_StackSize].m_aVars[i].Set(lua_toboolean(r.front().m_pLuaFile->m_pLua, i1));
                     }
-                    else if (lua_isstring(r.front().m_pLuaFile->m_pLua, Start + i + 1))
+                    else if (lua_isstring(r.front().m_pLuaFile->m_pLua, i1))
                     {
                         int Size = 0;
-                        const char *pData = lua_tolstring(r.front().m_pLuaFile->m_pLua, Start + i + 1, (size_t *)&Size);
+                        const char *pData = lua_tolstring(r.front().m_pLuaFile->m_pLua, i1, (size_t *)&Size);
                         if (str_length(pData) == Size)
                             m_aStackReturns[m_StackSize].m_aVars[i].Set(pData);
                         else
