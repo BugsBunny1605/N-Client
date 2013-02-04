@@ -998,23 +998,31 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 
     if (UseNewDmg)
         Dmg = NewDmg;
-
+	
+	bool hideInd = false;
+	
+	if(GameServer()->m_pLua->m_pEventListener->GetReturns(EventID)->m_aVars[5].IsNumeric() && GameServer()->m_pLua->m_pEventListener->GetReturns(EventID)->m_aVars[5].GetInteger() == 1)
+		hideInd =true;
+		
     if (pPlayer->GetCharacter()) //player may be forced to spec
     {
         m_DamageTaken++;
 
         // create healthmod indicator
-        if(Server()->Tick() < m_DamageTakenTick+25)
-        {
-            // make sure that the damage indicators doesn't group together
-            GameServer()->CreateDamageInd(m_Pos, m_DamageTaken*0.25f, Dmg);
-        }
-        else
-        {
-            m_DamageTaken = 0;
-            GameServer()->CreateDamageInd(m_Pos, 0, Dmg);
-        }
-
+		
+		if(!hideInd)
+		{		
+			if(Server()->Tick() < m_DamageTakenTick+25)
+			{
+				// make sure that the damage indicators doesn't group together
+				GameServer()->CreateDamageInd(m_Pos, m_DamageTaken*0.25f, Dmg);
+			}
+			else
+			{
+				m_DamageTaken = 0;
+				GameServer()->CreateDamageInd(m_Pos, 0, Dmg);
+			}
+		}
         if(Dmg)
         {
             if(m_Armor)

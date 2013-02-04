@@ -4,10 +4,9 @@
 
 class CLuaInput : public CComponent
 {
-	int m_Level;
-	char m_aEventString[32];
+	int m_Level;	
 public:
-	CLuaInput(int Level);
+	CLuaInput();
 	virtual bool OnInput(IInput::CEvent Event);
 };
 
