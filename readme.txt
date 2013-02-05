@@ -1,5 +1,5 @@
-N-Client Copyright (c) 2012 MAP94 and Patafix
-Teeworlds Copyright (c) 2012 Magnus Auvinen
+N-Client Copyright (c) 2013 MAP94 and Patafix
+Teeworlds Copyright (c) 2013 Magnus Auvinen
 
 
 This software is provided 'as-is', without any express or implied
