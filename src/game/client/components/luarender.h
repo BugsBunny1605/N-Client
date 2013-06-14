@@ -4,10 +4,9 @@
 
 class CLuaRender : public CComponent
 {
-	int m_Level;
-	char m_aEventString[32];
+	int m_Level;	
 public:
-	CLuaRender(int Level);
+	CLuaRender();
 	virtual void OnRender();
 };
 
